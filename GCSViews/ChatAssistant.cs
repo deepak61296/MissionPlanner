@@ -4,6 +4,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace MissionPlanner.GCSViews
 {
@@ -17,6 +18,7 @@ namespace MissionPlanner.GCSViews
         private TelemetryCollector telemetryCollector;
         private bool isProcessing = false;
         private bool isConnected = false;
+        private CancellationTokenSource cancellationTokenSource;
 
         /// <summary>
         /// Constructor for ChatAssistant form
@@ -34,11 +36,30 @@ namespace MissionPlanner.GCSViews
             // Initialize telemetry collector
             telemetryCollector = new TelemetryCollector(MainV2.comPort);
             
-            // Set default mode
-            modeComboBox.SelectedIndex = 0;  // Agent mode
+            // Set default mode to Ask (read-only) for safety
+            modeComboBox.SelectedIndex = 1;  // Ask mode (read-only)
+            
+            // Add mode change event handler
+            modeComboBox.SelectedIndexChanged += ModeComboBox_SelectedIndexChanged;
             
             // Load available models from Ollama
             LoadAvailableModels();
+        }
+
+        /// <summary>
+        /// Handles mode selection changes and shows warning for Agent mode
+        /// </summary>
+        private void ModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // If switching to Agent mode (index 0), show warning
+            if (modeComboBox.SelectedIndex == 0)
+            {
+                AppendMessage("[System] ⚠️ WARNING: Agent Mode enabled. AI can now control drone functions including ARM, TAKEOFF, LAND, and movement commands. Use with caution!", Color.FromArgb(255, 165, 0));
+            }
+            else
+            {
+                AppendMessage("[System] ✓ Ask Mode enabled. AI is in read-only mode and cannot execute commands.", Color.FromArgb(0, 200, 83));
+            }
         }
 
         /// <summary>
@@ -91,9 +112,13 @@ namespace MissionPlanner.GCSViews
                     return;
                 }
 
-                // Mark as processing
+                // Mark as processing - hide send, show cancel
                 isProcessing = true;
-                sendButton.Enabled = false;
+                sendButton.Visible = false;
+                
+                // Create cancellation token and show cancel button
+                cancellationTokenSource = new CancellationTokenSource();
+                cancelButton.Visible = true;
 
                 // Display user message in modern blue
                 AppendMessage("You: " + userMessage, Color.FromArgb(0, 120, 215));
@@ -115,8 +140,14 @@ namespace MissionPlanner.GCSViews
                 // Collect telemetry data
                 var telemetry = telemetryCollector.CollectAll();
 
-                // Get AI response with mode, model, and telemetry
-                AIResponse aiResponse = await aiService.SendMessageAsync(userMessage, mode, model, telemetry);
+                // Get AI response with mode, model, telemetry, and cancellation token
+                AIResponse aiResponse = await aiService.SendMessageAsync(
+                    userMessage, 
+                    mode, 
+                    model, 
+                    telemetry,
+                    cancellationTokenSource.Token
+                );
 
                 // Remove "Thinking..." message
                 RemoveLastMessage();
@@ -155,9 +186,38 @@ namespace MissionPlanner.GCSViews
             }
             finally
             {
-                // Re-enable send button
+                // Re-enable send button and hide cancel button
                 isProcessing = false;
-                sendButton.Enabled = true;
+                sendButton.Visible = true;
+                cancelButton.Visible = false;
+                cancellationTokenSource?.Dispose();
+                cancellationTokenSource = null;
+            }
+        }
+
+        /// <summary>
+        /// Handles cancel button click to stop AI processing
+        /// </summary>
+        private void cancelButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Cancel the ongoing request
+                cancellationTokenSource?.Cancel();
+                
+                // Remove "Thinking..." message
+                RemoveLastMessage();
+                
+                // Show cancellation message
+                AppendMessage("Assistant: [Request cancelled by user]", Color.Orange);
+                
+                // Auto-scroll to bottom
+                chatHistoryBox.SelectionStart = chatHistoryBox.Text.Length;
+                chatHistoryBox.ScrollToCaret();
+            }
+            catch (Exception ex)
+            {
+                CustomMessageBox.Show("Error cancelling request: " + ex.Message, Strings.ERROR);
             }
         }
 

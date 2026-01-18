@@ -83,6 +83,14 @@ namespace MissionPlanner
                         }
                         return "[Error: GOTO requires latitude and longitude parameters]";
 
+                    case "ALTITUDE_CHANGE":
+                        if (command.Parameters.ContainsKey("altitude_change"))
+                        {
+                            double altitudeChange = Convert.ToDouble(command.Parameters["altitude_change"]);
+                            return ChangeAltitude(altitudeChange);
+                        }
+                        return "[Error: ALTITUDE_CHANGE requires altitude_change parameter]";
+
                     case "GOTO_HOME":
                         return GoToHome();
 
@@ -276,6 +284,44 @@ namespace MissionPlanner
                     return $"✓ Flying to {latitude}, {longitude} at {altitude}m";
                 else
                     return $"✓ Flying to {latitude}, {longitude}";
+            }
+            catch (Exception ex)
+            {
+                return $"[Error: {ex.Message}]";
+            }
+        }
+
+        /// <summary>
+        /// Change altitude while maintaining current position
+        /// </summary>
+        private string ChangeAltitude(double altitudeChange)
+        {
+            try
+            {
+                // Get current position
+                double currentLat = mavlink.MAV.cs.lat;
+                double currentLon = mavlink.MAV.cs.lng;
+                double currentAlt = mavlink.MAV.cs.alt;
+                
+                // Calculate new altitude
+                double newAlt = currentAlt + altitudeChange;
+                
+                // Validate altitude
+                if (newAlt < 0)
+                {
+                    return "[Error: Altitude cannot be negative]";
+                }
+                
+                // Use GoTo with current position and new altitude
+                var loc = new MissionPlanner.Utilities.Locationwp();
+                loc.lat = currentLat;
+                loc.lng = currentLon;
+                loc.alt = (float)newAlt;
+                
+                mavlink.setGuidedModeWP(loc);
+                
+                string direction = altitudeChange > 0 ? "Ascending" : "Descending";
+                return $"✓ {direction} {Math.Abs(altitudeChange)}m to {newAlt}m altitude";
             }
             catch (Exception ex)
             {

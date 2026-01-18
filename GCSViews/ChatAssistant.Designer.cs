@@ -37,6 +37,7 @@ namespace MissionPlanner.GCSViews
             this.modeComboBox = new System.Windows.Forms.ComboBox();
             this.modelLabel = new System.Windows.Forms.Label();
             this.modelComboBox = new System.Windows.Forms.ComboBox();
+            this.cancelButton = new System.Windows.Forms.Button();
             this.bottomToolbar.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -68,6 +69,7 @@ namespace MissionPlanner.GCSViews
             this.bottomToolbar.Controls.Add(this.modelComboBox);
             this.bottomToolbar.Controls.Add(this.inputTextBox);
             this.bottomToolbar.Controls.Add(this.sendButton);
+            this.bottomToolbar.Controls.Add(this.cancelButton);
             this.bottomToolbar.Location = new System.Drawing.Point(0, 490);
             this.bottomToolbar.Name = "bottomToolbar";
             this.bottomToolbar.Size = new System.Drawing.Size(800, 110);
@@ -169,6 +171,23 @@ namespace MissionPlanner.GCSViews
             this.sendButton.UseVisualStyleBackColor = false;
             this.sendButton.Click += new System.EventHandler(this.sendButton_Click);
             // 
+            // cancelButton
+            // 
+            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.cancelButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(53)))), ((int)(((byte)(69)))));
+            this.cancelButton.FlatAppearance.BorderSize = 0;
+            this.cancelButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.cancelButton.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.cancelButton.ForeColor = System.Drawing.Color.White;
+            this.cancelButton.Location = new System.Drawing.Point(690, 10);
+            this.cancelButton.Name = "cancelButton";
+            this.cancelButton.Size = new System.Drawing.Size(100, 60);
+            this.cancelButton.TabIndex = 7;
+            this.cancelButton.Text = "Cancel";
+            this.cancelButton.UseVisualStyleBackColor = false;
+            this.cancelButton.Visible = false;
+            this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
+            // 
             // ChatAssistant
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -196,5 +215,6 @@ namespace MissionPlanner.GCSViews
         private System.Windows.Forms.Label modelLabel;
         private System.Windows.Forms.ComboBox modelComboBox;
         private System.Windows.Forms.Button connectionButton;
+        private System.Windows.Forms.Button cancelButton;
     }
 }

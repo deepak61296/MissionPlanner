@@ -1,5 +1,7 @@
 # MissionPlanner
 
+> **🤖 New Feature in This Build:** AI Chat Assistant - Press `Ctrl+L` to control your drone with natural language and get answers from ArduPilot docs. [Setup Guide](https://github.com/deepak61296/ap_offline_chat_tool)
+
 ![Dot Net](https://github.com/ardupilot/missionplanner/actions/workflows/main.yml/badge.svg) ![Android](https://github.com/ardupilot/missionplanner/actions/workflows/android.yml/badge.svg) ![OSX/IOS](https://github.com/ardupilot/missionplanner/actions/workflows/mac.yml/badge.svg)
 
 Website : http://ardupilot.org/planner/

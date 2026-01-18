@@ -87,7 +87,8 @@ namespace MissionPlanner
             string message, 
             string mode = "agent", 
             string model = "qwen2.5:3b",
-            System.Collections.Generic.Dictionary<string, object> telemetry = null)
+            System.Collections.Generic.Dictionary<string, object> telemetry = null,
+            System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
@@ -103,8 +104,8 @@ namespace MissionPlanner
                 var jsonContent = JsonConvert.SerializeObject(payload);
                 var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
 
-                // Send POST request to /chat endpoint
-                var response = await httpClient.PostAsync($"{backendUrl}/chat", httpContent);
+                // Send POST request to /chat endpoint with cancellation support
+                var response = await httpClient.PostAsync($"{backendUrl}/chat", httpContent, cancellationToken);
 
                 // Read response
                 var responseContent = await response.Content.ReadAsStringAsync();
