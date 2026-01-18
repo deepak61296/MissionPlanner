@@ -62,6 +62,9 @@ namespace MissionPlanner
                     case "RTL":
                         return ReturnToLaunch();
 
+                    case "REBOOT":
+                        return RebootFlightController();
+
                     case "CHANGE_MODE":
                         if (command.Parameters.ContainsKey("mode"))
                         {
@@ -75,9 +78,39 @@ namespace MissionPlanner
                         {
                             double lat = Convert.ToDouble(command.Parameters["latitude"]);
                             double lon = Convert.ToDouble(command.Parameters["longitude"]);
-                            return GoTo(lat, lon);
+                            double alt = command.Parameters.ContainsKey("altitude") ? Convert.ToDouble(command.Parameters["altitude"]) : 0;
+                            return GoTo(lat, lon, alt);
                         }
                         return "[Error: GOTO requires latitude and longitude parameters]";
+
+                    case "GOTO_HOME":
+                        return GoToHome();
+
+                    case "MOVE_DIRECTION":
+                        if (command.Parameters.ContainsKey("direction") && command.Parameters.ContainsKey("distance"))
+                        {
+                            string direction = command.Parameters["direction"].ToString();
+                            double distance = Convert.ToDouble(command.Parameters["distance"]);
+                            return MoveDirection(direction, distance);
+                        }
+                        return "[Error: MOVE_DIRECTION requires direction and distance parameters]";
+
+                    case "GET_PARAM":
+                        if (command.Parameters.ContainsKey("name"))
+                        {
+                            string paramName = command.Parameters["name"].ToString();
+                            return GetParameter(paramName);
+                        }
+                        return "[Error: GET_PARAM requires name parameter]";
+
+                    case "SET_PARAM":
+                        if (command.Parameters.ContainsKey("name") && command.Parameters.ContainsKey("value"))
+                        {
+                            string paramName = command.Parameters["name"].ToString();
+                            float paramValue = Convert.ToSingle(command.Parameters["value"]);
+                            return SetParameter(paramName, paramValue);
+                        }
+                        return "[Error: SET_PARAM requires name and value parameters]";
 
                     default:
                         return $"[Error: Unknown command type: {command.Type}]";
@@ -177,6 +210,29 @@ namespace MissionPlanner
         }
 
         /// <summary>
+        /// Reboot the flight controller
+        /// </summary>
+        private string RebootFlightController()
+        {
+            try
+            {
+                // Send reboot command to flight controller using MAV_CMD_PREFLIGHT_REBOOT_SHUTDOWN
+                mavlink.doCommand(
+                    mavlink.MAV.sysid,
+                    mavlink.MAV.compid,
+                    MAVLink.MAV_CMD.PREFLIGHT_REBOOT_SHUTDOWN,
+                    1,  // Reboot autopilot
+                    0, 0, 0, 0, 0, 0
+                );
+                return "✓ Rebooting flight controller";
+            }
+            catch (Exception ex)
+            {
+                return $"[Error: {ex.Message}]";
+            }
+        }
+
+        /// <summary>
         /// Change flight mode
         /// </summary>
         private string ChangeMode(string mode)
@@ -194,26 +250,154 @@ namespace MissionPlanner
         }
 
         /// <summary>
-        /// Go to specified coordinates
+        /// Go to specified coordinates with optional altitude
         /// </summary>
-        private string GoTo(double latitude, double longitude)
+        private string GoTo(double latitude, double longitude, double altitude = 0)
         {
             try
             {
-                // Send GOTO command
-                mavlink.doCommand(
-                    mavlink.MAV.sysid,
-                    mavlink.MAV.compid,
-                    MAVLink.MAV_CMD.DO_REPOSITION,
-                    -1,  // ground speed (-1 = use default)
-                    (int)MAVLink.MAV_DO_REPOSITION_FLAGS.CHANGE_MODE,  // flags
-                    0, 0,  // reserved
-                    (float)latitude,
-                    (float)longitude,
-                    0  // altitude (0 = maintain current)
+                // Use setGuidedModeWP for more reliable GUIDED mode navigation
+                // This is what Mission Planner uses internally for "Fly To Here"
+                if (altitude == 0)
+                {
+                    altitude = mavlink.MAV.cs.alt; // Use current altitude if not specified
+                }
+
+                // Create Locationwp from coordinates
+                var loc = new MissionPlanner.Utilities.Locationwp();
+                loc.lat = latitude;
+                loc.lng = longitude;
+                loc.alt = (float)altitude;
+
+                // Set guided mode waypoint
+                mavlink.setGuidedModeWP(loc);
+
+                if (altitude > 0)
+                    return $"✓ Flying to {latitude}, {longitude} at {altitude}m";
+                else
+                    return $"✓ Flying to {latitude}, {longitude}";
+            }
+            catch (Exception ex)
+            {
+                return $"[Error: {ex.Message}]";
+            }
+        }
+
+        /// <summary>
+        /// Return to home position
+        /// </summary>
+        private string GoToHome()
+        {
+            try
+            {
+                // Get home position from MAVLink
+                var home = mavlink.MAV.cs.HomeLocation;
+                if (home == null)
+                {
+                    return "[Error: Home position not set]";
+                }
+
+                return GoTo(home.Lat, home.Lng, 0);
+            }
+            catch (Exception ex)
+            {
+                return $"[Error: {ex.Message}]";
+            }
+        }
+
+        /// <summary>
+        /// Move in a specific direction by a certain distance
+        /// </summary>
+        private string MoveDirection(string direction, double distance)
+        {
+            try
+            {
+                // Ensure we're in GUIDED mode for movement
+                mavlink.setMode(mavlink.MAV.sysid, mavlink.MAV.compid, "GUIDED");
+                System.Threading.Thread.Sleep(500); // Wait for mode change
+                
+                // Get current position
+                double currentLat = mavlink.MAV.cs.lat;
+                double currentLon = mavlink.MAV.cs.lng;
+                double currentAlt = mavlink.MAV.cs.alt;
+
+                if (currentLat == 0 && currentLon == 0)
+                {
+                    return "[Error: Current position unknown]";
+                }
+
+                // Calculate bearing based on direction (4 cardinal directions only)
+                double bearing = 0;
+                switch (direction.ToUpper())
+                {
+                    case "NORTH": bearing = 0; break;
+                    case "SOUTH": bearing = 180; break;
+                    case "EAST": bearing = 90; break;
+                    case "WEST": bearing = 270; break;
+                    default:
+                        return $"[Error: Unsupported direction '{direction}'. Use: north, south, east, or west]";
+                }
+
+                // Calculate new position using Haversine formula
+                const double EARTH_RADIUS = 6371000; // meters
+                double latRad = currentLat * Math.PI / 180.0;
+                double lonRad = currentLon * Math.PI / 180.0;
+                double bearingRad = bearing * Math.PI / 180.0;
+
+                double newLatRad = Math.Asin(
+                    Math.Sin(latRad) * Math.Cos(distance / EARTH_RADIUS) +
+                    Math.Cos(latRad) * Math.Sin(distance / EARTH_RADIUS) * Math.Cos(bearingRad)
                 );
 
-                return $"✓ Flying to {latitude}, {longitude}";
+                double newLonRad = lonRad + Math.Atan2(
+                    Math.Sin(bearingRad) * Math.Sin(distance / EARTH_RADIUS) * Math.Cos(latRad),
+                    Math.Cos(distance / EARTH_RADIUS) - Math.Sin(latRad) * Math.Sin(newLatRad)
+                );
+
+                double newLat = newLatRad * 180.0 / Math.PI;
+                double newLon = newLonRad * 180.0 / Math.PI;
+
+                // Use GOTO to move to new position
+                return GoTo(newLat, newLon, currentAlt);
+            }
+            catch (Exception ex)
+            {
+                return $"[Error: {ex.Message}]";
+            }
+        }
+
+        /// <summary>
+        /// Get a parameter value
+        /// </summary>
+        private string GetParameter(string paramName)
+        {
+            try
+            {
+                // Get parameter from MAVLink
+                var param = mavlink.MAV.param[paramName];
+                if (param == null)
+                {
+                    return $"[Error: Parameter {paramName} not found]";
+                }
+
+                return $"✓ {paramName} = {param.Value}";
+            }
+            catch (Exception ex)
+            {
+                return $"[Error: {ex.Message}]";
+            }
+        }
+
+        /// <summary>
+        /// Set a parameter value
+        /// </summary>
+        private string SetParameter(string paramName, float value)
+        {
+            try
+            {
+                // Set parameter via MAVLink
+                mavlink.setParam(mavlink.MAV.sysid, mavlink.MAV.compid, paramName, value);
+                return $"✓ Set {paramName} = {value}";
             }
             catch (Exception ex)
             {
