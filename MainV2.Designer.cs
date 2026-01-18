@@ -49,11 +49,13 @@ namespace MissionPlanner
             this.MenuConfigTune = new System.Windows.Forms.ToolStripButton();
             this.MenuSimulation = new System.Windows.Forms.ToolStripButton();
             this.MenuHelp = new System.Windows.Forms.ToolStripButton();
+            this.MenuAIAssistant = new System.Windows.Forms.ToolStripButton();
             this.MenuConnect = new System.Windows.Forms.ToolStripButton();
             this.toolStripConnectionControl = new MissionPlanner.Controls.ToolStripConnectionControl();
             this.MenuArduPilot = new System.Windows.Forms.ToolStripButton();
             this.menu = new MissionPlanner.Controls.MyButton();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.chatSidebarPanel = new System.Windows.Forms.Panel();
             this.status1 = new MissionPlanner.Controls.Status();
             this.MainMenu.SuspendLayout();
             this.CTX_mainmenu.SuspendLayout();
@@ -73,6 +75,7 @@ namespace MissionPlanner
             this.MenuConfigTune,
             this.MenuSimulation,
             this.MenuHelp,
+            this.MenuAIAssistant,
             this.MenuConnect,
             this.toolStripConnectionControl,
             this.MenuArduPilot});
@@ -173,6 +176,14 @@ namespace MissionPlanner
             this.MenuHelp.Name = "MenuHelp";
             this.MenuHelp.Click += new System.EventHandler(this.MenuHelp_Click);
             // 
+            // MenuAIAssistant
+            // 
+            this.MenuAIAssistant.ForeColor = System.Drawing.SystemColors.ControlLight;
+            resources.ApplyResources(this.MenuAIAssistant, "MenuAIAssistant");
+            this.MenuAIAssistant.Margin = new System.Windows.Forms.Padding(0);
+            this.MenuAIAssistant.Name = "MenuAIAssistant";
+            this.MenuAIAssistant.Click += new System.EventHandler(this.MenuAIAssistant_Click);
+            // 
             // MenuConnect
             // 
             this.MenuConnect.Alignment = System.Windows.Forms.ToolStripItemAlignment.Right;
@@ -228,6 +239,7 @@ namespace MissionPlanner
             // 
             resources.ApplyResources(this, "$this");
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.chatSidebarPanel);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.menu);
             this.KeyPreview = true;
@@ -262,7 +274,9 @@ namespace MissionPlanner
         private System.Windows.Forms.ToolStripMenuItem connectionOptionsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem connectionListToolStripMenuItem;
         public System.Windows.Forms.ToolStripButton MenuHelp;
+        public System.Windows.Forms.ToolStripButton MenuAIAssistant;
         public System.Windows.Forms.ToolStripButton MenuArduPilot;
         public Controls.Status status1;
+        private System.Windows.Forms.Panel chatSidebarPanel;
     }
 }

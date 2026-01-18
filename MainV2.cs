@@ -1308,6 +1308,11 @@ namespace MissionPlanner
             SaveConfig();
         }
 
+        private void MenuAIAssistant_Click(object sender, EventArgs e)
+        {
+            ToggleChatSidebar();
+        }
+
         public void MenuSetup_Click(object sender, EventArgs e)
         {
             if (Settings.Instance.GetBoolean("password_protect") == false)
@@ -3166,6 +3171,10 @@ namespace MissionPlanner
             MyView.AddScreen(new MainSwitcher.Screen("SWConfig", typeof(GCSViews.SoftwareConfig), false));
             MyView.AddScreen(new MainSwitcher.Screen("Simulation", Simulation, true));
             MyView.AddScreen(new MainSwitcher.Screen("Help", typeof(GCSViews.Help), false));
+            MyView.AddScreen(new MainSwitcher.Screen("ChatAssistant", typeof(GCSViews.ChatAssistant), false));
+
+            // Initialize AI Chat Sidebar Panel
+            InitializeChatSidebar();
 
             try
             {
@@ -4113,12 +4122,9 @@ namespace MissionPlanner
                 return true;
             }
 
-            if (keyData == (Keys.Control | Keys.L)) // limits
+            if (keyData == (Keys.Control | Keys.L)) // AI Assistant
             {
-                //new DigitalSkyUI().ShowUserControl();
-
-                new SpectrogramUI().Show();
-
+                ToggleChatSidebar();
                 return true;
             }
 
