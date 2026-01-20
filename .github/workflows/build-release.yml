@@ -1,0 +1,78 @@
+name: Build Mission Planner Release
+
+on:
+  push:
+    tags:
+      - 'v*-ai'  # Trigger on tags like v1.0.0-ai
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+      
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v1
+      
+      - name: Restore NuGet packages
+        run: nuget restore MissionPlanner.sln
+      
+      - name: Build Solution
+        run: msbuild MissionPlanner.sln /p:Configuration=Release /p:Platform="Any CPU" /m
+      
+      - name: Create Release Package
+        run: |
+          mkdir release
+          Copy-Item -Path "bin\Release\MissionPlanner.exe" -Destination "release\"
+          Copy-Item -Path "bin\Release\*.dll" -Destination "release\" -Recurse
+          Copy-Item -Path "bin\Release\*.config" -Destination "release\" -Recurse
+          Copy-Item -Path "README_AI_FEATURES.md" -Destination "release\"
+      
+      - name: Create ZIP archive
+        run: |
+          Compress-Archive -Path "release\*" -DestinationPath "MissionPlanner-AI-${{ github.ref_name }}.zip"
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            MissionPlanner-AI-${{ github.ref_name }}.zip
+            release/MissionPlanner.exe
+          body: |
+            # Mission Planner with AI Chat Features
+            
+            ## What's New
+            - AI-powered chat assistant (Ctrl+L)
+            - Natural language drone control
+            - Real-time telemetry queries
+            
+            ## Requirements
+            - Windows 10/11
+            - AI Backend: https://github.com/deepak61296/ArduPilot-AI-Backend
+            
+            ## Installation
+            1. Download `MissionPlanner-AI-${{ github.ref_name }}.zip`
+            2. Extract to a folder
+            3. Run `MissionPlanner.exe`
+            4. Install AI Backend (see link above)
+            5. Press Ctrl+L to open AI Chat
+            
+            ## ⚠️ Important
+            - **SITL only** - Not tested on real hardware
+            - **No warranty** - Use at your own risk
+            - **Copter only** - Plane/Rover coming soon
+            
+            See `README_AI_FEATURES.md` for full documentation.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
