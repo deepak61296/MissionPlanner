@@ -9,7 +9,7 @@ AI-powered chat assistant to control your drone with natural language and get re
 ## Requirements
 
 **This Mission Planner fork requires the AI Backend:**
-- AI Backend: https://github.com/deepak61296/ArduPilot-AI-Backend
+- AI Backend: https://github.com/deepak61296/ap_offline_chat_tool
 
 Both must be installed and running together.
 
@@ -17,7 +17,7 @@ Both must be installed and running together.
 
 ### 1. Install AI Backend
 
-Follow the setup guide: https://github.com/deepak61296/ArduPilot-AI-Backend#quick-setup
+Follow the setup guide: https://github.com/deepak61296/ap_offline_chat_tool#quick-setup
 
 Make sure the backend is running on `http://localhost:5000`
 
@@ -123,8 +123,8 @@ The AI reads real-time telemetry and responds with current values.
 
 ## Links
 
-- **AI Backend Setup:** https://github.com/deepak61296/ArduPilot-AI-Backend
-- **Report Issues:** https://github.com/deepak61296/ArduPilot-AI-Backend/issues
+- **AI Backend Setup:** https://github.com/deepak61296/ap_offline_chat_tool
+- **Report Issues:** https://github.com/deepak61296/ap_offline_chat_tool/issues
 - **ArduPilot Docs:** https://ardupilot.org
 
 ---

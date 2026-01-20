@@ -5,7 +5,7 @@
 **Control your drone with natural language!** Press `Ctrl+L` to open AI Chat.
 
 **Requirements:**
-- AI Backend: https://github.com/deepak61296/ArduPilot-AI-Backend
+- AI Backend: https://github.com/deepak61296/ap_offline_chat_tool
 - Windows 10/11
 - Copter only (SITL tested)
 
