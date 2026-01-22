@@ -5429,6 +5429,9 @@ namespace MissionPlanner.GCSViews
                     //Console.Write("bindingSourceHud ");
                     MainV2.comPort.MAV.cs.UpdateCurrentSettings(
                         bindingSourceHud.UpdateDataSource(MainV2.comPort.MAV.cs));
+                    // Always update QuickView binding so panel displays data regardless of selected tab
+                    MainV2.comPort.MAV.cs.UpdateCurrentSettings(
+                        bindingSourceQuickTab.UpdateDataSource(MainV2.comPort.MAV.cs));
                     //Console.WriteLine("DONE ");
 
                     if (tabControlactions.SelectedTab == tabStatus)
@@ -5436,11 +5439,6 @@ namespace MissionPlanner.GCSViews
                         MainV2.comPort.MAV.cs.UpdateCurrentSettings(
                             bindingSourceStatusTab.UpdateDataSource(MainV2.comPort.MAV.cs));
                         this.tabStatus.Invalidate();
-                    }
-                    else if (tabControlactions.SelectedTab == tabQuick)
-                    {
-                        MainV2.comPort.MAV.cs.UpdateCurrentSettings(
-                            bindingSourceQuickTab.UpdateDataSource(MainV2.comPort.MAV.cs));
                     }
                     else if (tabControlactions.SelectedTab == tabGauges)
                     {
@@ -5464,8 +5462,8 @@ namespace MissionPlanner.GCSViews
                     MainV2.comPort.MAV.cs.UpdateCurrentSettings(
                         bindingSourceHud.UpdateDataSource(MainV2.comPort.MAV.cs));
                 }
-                //if the tab detached wi have to update it
-                if (tabQuickDetached) MainV2.comPort.MAV.cs.UpdateCurrentSettings(bindingSourceQuickTab.UpdateDataSource(MainV2.comPort.MAV.cs));
+                // Removed duplicate update - now handled unconditionally above
+
 
                 lastscreenupdate = DateTime.UtcNow;
             }
