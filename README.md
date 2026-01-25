@@ -1,39 +1,157 @@
-# Mission Planner - AI Chat Fork
+# Mission Planner with AI Chat
 
-⚠️ **EXPERIMENTAL VERSION - USE AT YOUR OWN RISK**
+A special **fork** of Mission Planner featuring an integrated AI chat assistant for natural language drone control.
 
-This is a **test fork** of Mission Planner with AI chat features. This is **NOT** the official Mission Planner.
+Press **Ctrl+L** to chat with your drone using plain English!
 
-## ⚠️ Important Warnings
+## 🤖 What Makes This Special?
 
-- **Not for real flights** - SITL testing only
-- **No warranty** - Use at your own risk
-- **Experimental** - This is a proof-of-concept
-- **Copter only** - Plane/Rover not supported
+This fork adds an AI-powered sidebar to Mission Planner that lets you:
+- **Control your drone** using natural language ("take off to 10 meters")
+- **Query telemetry** in plain English ("what's my battery level?")
+- **Get instant responses** without memorizing commands
 
-## 🤖 AI Features
+**Example:**
+```
+You: "arm the drone and take off to 15 meters"
+AI: ✓ Arming motors... ✓ Taking off to 15m...
 
-Press **Ctrl+L** to open AI Chat Assistant for:
-- Natural language drone control
-- Telemetry queries
-- Flight commands
+You: "how high am I flying?"
+AI: Current altitude: 15.3 meters
+```
 
-**Requires AI Backend:** https://github.com/deepak61296/ap_offline_chat_tool
+## 📦 Download & Install
 
-## 📦 Download
+### Option 1: Download Release (Easiest)
 
-**Latest Release:** https://github.com/deepak61296/MissionPlanner/releases/tag/ai_backend
+**Latest Release:**  
+https://github.com/deepak61296/MissionPlanner/releases/tag/ai_backend
 
-Extract and run `MissionPlanner.exe` (no installation needed).
+1. Download `MissionPlanner-AI-v1.0.0.zip`
+2. Extract anywhere
+3. Run `MissionPlanner.exe` (no installation needed)
+4. Install AI backend (see below)
+5. Press **Ctrl+L** to start chatting!
+
+### Option 2: Build from Source
+
+```bash
+git clone https://github.com/deepak61296/MissionPlanner.git
+cd MissionPlanner
+git checkout feature/ai-chat-assistant
+
+# Open MissionPlanner.sln in Visual Studio
+# Build → Build Solution
+```
+
+## 🔧 AI Backend Setup
+
+The AI chat feature requires a local backend server.
+
+**Install the backend:** https://github.com/deepak61296/ap_offline_chat_tool
+
+Quick setup:
+```bash
+# Install Ollama (https://ollama.com/download)
+ollama pull qwen2.5:3b
+
+# Clone backend
+git clone https://github.com/deepak61296/ap_offline_chat_tool.git
+cd ap_offline_chat_tool
+
+# Setup Python environment
+conda create -n ai_backend python=3.10 -y
+conda activate ai_backend
+pip install -r requirements.txt
+
+# Start backend
+python -m backend.api_server
+```
+
+See the [backend README](https://github.com/deepak61296/ap_offline_chat_tool) for detailed setup instructions.
+
+## 🚀 How to Use
+
+1. **Start Mission Planner** (this fork)
+2. **Start AI backend** (must be running at http://localhost:5000)
+3. **Press Ctrl+L** to open AI Chat sidebar
+4. **Connect to SITL** or simulator
+5. **Chat with your drone!**
+
+### Two Modes
+
+**Agent Mode** (execute commands):
+- "take off to 20 meters"
+- "move forward 10 meters"
+- "land now"
+
+**Ask Mode** (query telemetry):
+- "what's my battery?"
+- "how high am I?"
+- "what mode am I in?"
+
+Switch modes using the dropdown in the AI Chat panel.
+
+## 📁 Project Structure
+
+Key files for AI integration:
+
+```
+MissionPlanner/
+├── AIBackendService.cs        # Communicates with backend API
+├── GCSViews/
+│   ├── ChatAssistant.cs       # AI chat sidebar UI
+│   └── FlightData.cs          # QuickView panel fix
+├── MainV2.ChatSidebar.cs      # Sidebar integration
+├── DroneCommandExecutor.cs    # Command execution
+└── README_AI_FEATURES.md      # Detailed AI features guide
+```
+
+## 🎯 Features
+
+- ✅ **Natural language control** - No memorizing commands
+- ✅ **Real-time telemetry queries** - Ask questions anytime
+- ✅ **Conversational UI** - Chat-like interface
+- ✅ **Offline operation** - Works without internet
+- ✅ **Safety filters** - Rejects dangerous commands
+- ✅ **QuickView panel fix** - Displays telemetry properly
+
+## 🔗 Links
+
+- **AI Backend:** https://github.com/deepak61296/ap_offline_chat_tool
+- **Latest Release:** https://github.com/deepak61296/MissionPlanner/releases/tag/ai_backend
+- **Report Issues:** https://github.com/deepak61296/MissionPlanner/issues
+- **Official Mission Planner:** https://github.com/ArduPilot/MissionPlanner
 
 ## 📖 Documentation
 
-See [README_AI_FEATURES.md](README_AI_FEATURES.md) for AI chat documentation.
+- [README_AI_FEATURES.md](README_AI_FEATURES.md) - Detailed AI features guide
+- [Backend Setup](https://github.com/deepak61296/ap_offline_chat_tool) - Full backend documentation
 
-## 🔗 Official Mission Planner
+## 🛠️ Development
 
-For the official, stable version: https://github.com/ArduPilot/MissionPlanner
+This fork is based on ArduPilot's Mission Planner with added AI chat features.
 
----
+**Main changes:**
+- AI chat sidebar integration (Ctrl+L)
+- Backend communication layer
+- Command execution pipeline
+- QuickView panel data binding fix
 
-**License:** GPL-3.0 (inherited from ArduPilot/MissionPlanner)
+**Contributing:**
+1. Fork this repo
+2. Create feature branch
+3. Test with SITL
+4. Submit PR
+
+## ⚠️ Important Notes
+
+- **Testing:** This fork is currently tested on SITL only
+- **Vehicle Support:** Copter only (Plane/Rover not yet supported)  
+- **Experimental:** Test thoroughly in simulation before considering real flights
+- **No Warranty:** Use at your own risk - this is independent development
+- **License:** GPL-3.0 (inherited from ArduPilot/MissionPlanner)
+
+Always test in simulation (SITL) before any real-world use.
+
+For the official, production-ready Mission Planner, visit: https://github.com/ArduPilot/MissionPlanner
