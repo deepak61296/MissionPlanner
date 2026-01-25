@@ -20,14 +20,6 @@ You: "how high am I flying?"
 AI: Current altitude: 15.3 meters
 ```
 
-## 🎥 Demo Video
-
-Watch the AI chat in action:
-
-https://github.com/deepak61296/MissionPlanner/assets/demo.mkv
-
-*(Click to download and play)*
-
 ## 📦 Download & Install
 
 ### Option 1: Download Release (Easiest)
