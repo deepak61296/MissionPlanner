@@ -1,5 +1,6 @@
 using MissionPlanner.Controls;
 using MissionPlanner.Utilities;
+using MissionPlanner.ArduPilot.Mavlink;
 using System;
 using System.Drawing;
 using System.Windows.Forms;
