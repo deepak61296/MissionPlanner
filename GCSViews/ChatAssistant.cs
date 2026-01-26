@@ -19,6 +19,8 @@ namespace MissionPlanner.GCSViews
         private bool isProcessing = false;
         private bool isConnected = false;
         private CancellationTokenSource cancellationTokenSource;
+        private string lastSavedScriptPath = null;
+        private string lastScriptDescription = null;
 
         /// <summary>
         /// Constructor for ChatAssistant form
@@ -51,14 +53,22 @@ namespace MissionPlanner.GCSViews
         /// </summary>
         private void ModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // If switching to Agent mode (index 0), show warning
-            if (modeComboBox.SelectedIndex == 0)
+            // Mode indices: 0 = Agent, 1 = Ask, 2 = Script
+            if (modeComboBox.SelectedIndex == 0) // Agent mode
             {
-                AppendMessage("[System] ⚠️ WARNING: Agent Mode enabled. AI can now control drone functions including ARM, TAKEOFF, LAND, and movement commands. Use with caution!", Color.FromArgb(255, 165, 0));
+                flashScriptButton.Visible = false;
+                AppendMessage("[System] WARNING: Agent Mode enabled. AI can now control drone functions including ARM, TAKEOFF, LAND, and movement commands. Use with caution!", Color.FromArgb(255, 165, 0));
             }
-            else
+            else if (modeComboBox.SelectedIndex == 1) // Ask mode
             {
-                AppendMessage("[System] ✓ Ask Mode enabled. AI is in read-only mode and cannot execute commands.", Color.FromArgb(0, 200, 83));
+                flashScriptButton.Visible = false;
+                AppendMessage("[System] Ask Mode enabled. AI is in read-only mode and cannot execute commands.", Color.FromArgb(0, 200, 83));
+            }
+            else if (modeComboBox.SelectedIndex == 2) // Script mode
+            {
+                flashScriptButton.Visible = true;
+                flashScriptButton.Enabled = (lastSavedScriptPath != null);
+                AppendMessage("[System] Script Mode enabled. AI will generate ArduPilot Lua scripts from your requests.", Color.FromArgb(100, 149, 237));
             }
         }
 
@@ -170,6 +180,19 @@ namespace MissionPlanner.GCSViews
                     AppendMessage($"[Executing: {aiResponse.Command.Type}...]", Color.Blue);
                     
                     string result = await commandExecutor.ExecuteCommand(aiResponse.Command);
+                    
+                    // Track last saved script for flash button
+                    if (aiResponse.Command.Type == "LUA_SCRIPT" && result.StartsWith("✓"))
+                    {
+                        var lines = result.Split('\n');
+                        if (lines.Length >= 2)
+                        {
+                            string filename = lines[0].Replace("✓ Lua script saved: ", "").Trim();
+                            string location = lines[1].Replace("📁 Location: ", "").Trim();
+                            lastSavedScriptPath = System.IO.Path.Combine(location, filename);
+                            lastScriptDescription = lines.Length >= 3 ? lines[2].Replace("📝 ", "").Trim() : "Lua script";
+                        }
+                    }
                     
                     // Color code the result (green for success, red for error)
                     Color resultColor = result.StartsWith("✓") ? Color.Green : Color.Red;
@@ -427,5 +450,69 @@ namespace MissionPlanner.GCSViews
                 AppendMessage("[System: Could not check AI backend status]", Color.Gray);
             }
         }
+
+
+        /// <summary>
+        /// Handle flash script button click - uploads last saved script to flight controller
+        /// </summary>
+        private async void flashScriptButton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(lastSavedScriptPath) || !System.IO.File.Exists(lastSavedScriptPath))
+                {
+                    AppendMessage("[Error: No script file found to upload]", Color.Red);
+                    return;
+                }
+
+                var result = CustomMessageBox.Show(
+                    $"Upload Lua script to flight controller?\n\n" +
+                    $"File: {System.IO.Path.GetFileName(lastSavedScriptPath)}\n" +
+                    $"Description: {lastScriptDescription}\n\n" +
+                    $"The script will be uploaded to /APM/scripts/ on the SD card.",
+                    "Flash Script to FC",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result != (int)DialogResult.Yes)
+                {
+                    AppendMessage("[Flash cancelled by user]", Color.Gray);
+                    return;
+                }
+
+                AppendMessage($"[Uploading {System.IO.Path.GetFileName(lastSavedScriptPath)} to flight controller...]", Color.Blue);
+
+                string targetPath = "/APM/scripts/" + System.IO.Path.GetFileName(lastSavedScriptPath);
+                
+                await Task.Run(() =>
+                {
+                    try
+                    {
+                        var ftp = new MAVFtp(MainV2.comPort, MainV2.comPort.MAV.sysid, MainV2.comPort.MAV.compid);
+                        var fileBytes = System.IO.File.ReadAllBytes(lastSavedScriptPath);
+                        ftp.UploadFile(targetPath, new System.IO.MemoryStream(fileBytes), null);
+                    }
+                    catch (Exception uploadEx)
+                    {
+                        throw new Exception($"MAVFTP upload failed: {uploadEx.Message}");
+                    }
+                });
+
+                AppendMessage($"✓ Script uploaded successfully to {targetPath}", Color.Green);
+                AppendMessage("[Note: You may need to reboot the flight controller to load the new script]", Color.FromArgb(100, 149, 237));
+                flashScriptButton.Enabled = true;
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"[Error uploading script: {ex.Message}]", Color.Red);
+                CustomMessageBox.Show(
+                    $"Failed to upload script:\n\n{ex.Message}\n\nMake sure the flight controller is connected and MAVFTP is supported.",
+                    Strings.ERROR
+                );
+            }
+        }
+
     }
 }
+

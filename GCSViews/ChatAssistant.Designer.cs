@@ -38,6 +38,7 @@ namespace MissionPlanner.GCSViews
             this.modelLabel = new System.Windows.Forms.Label();
             this.modelComboBox = new System.Windows.Forms.ComboBox();
             this.cancelButton = new System.Windows.Forms.Button();
+            this.flashScriptButton = new System.Windows.Forms.Button();
             this.bottomToolbar.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -70,6 +71,7 @@ namespace MissionPlanner.GCSViews
             this.bottomToolbar.Controls.Add(this.inputTextBox);
             this.bottomToolbar.Controls.Add(this.sendButton);
             this.bottomToolbar.Controls.Add(this.cancelButton);
+            this.bottomToolbar.Controls.Add(this.flashScriptButton);
             this.bottomToolbar.Location = new System.Drawing.Point(0, 490);
             this.bottomToolbar.Name = "bottomToolbar";
             this.bottomToolbar.Size = new System.Drawing.Size(800, 110);
@@ -110,7 +112,7 @@ namespace MissionPlanner.GCSViews
             this.modeComboBox.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.modeComboBox.ForeColor = System.Drawing.Color.White;
             this.modeComboBox.FormattingEnabled = true;
-            this.modeComboBox.Items.AddRange(new object[] {"Agent", "Ask"});
+            this.modeComboBox.Items.AddRange(new object[] {"Agent", "Ask", "Script"});
             this.modeComboBox.Location = new System.Drawing.Point(55, 79);
             this.modeComboBox.Name = "modeComboBox";
             this.modeComboBox.Size = new System.Drawing.Size(100, 23);
@@ -188,6 +190,23 @@ namespace MissionPlanner.GCSViews
             this.cancelButton.Visible = false;
             this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
             // 
+            // flashScriptButton
+            // 
+            this.flashScriptButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.flashScriptButton.BackColor = System.Drawing.Color.FromArgb(100, 149, 237);
+            this.flashScriptButton.FlatAppearance.BorderSize = 0;
+            this.flashScriptButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.flashScriptButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.flashScriptButton.ForeColor = System.Drawing.Color.White;
+            this.flashScriptButton.Location = new System.Drawing.Point(400, 79);
+            this.flashScriptButton.Name = "flashScriptButton";
+            this.flashScriptButton.Size = new System.Drawing.Size(120, 25);
+            this.flashScriptButton.TabIndex = 8;
+            this.flashScriptButton.Text = "Flash to FC";
+            this.flashScriptButton.UseVisualStyleBackColor = false;
+            this.flashScriptButton.Visible = false;
+            this.flashScriptButton.Click += new System.EventHandler(this.flashScriptButton_Click);
+            // 
             // ChatAssistant
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -216,5 +235,6 @@ namespace MissionPlanner.GCSViews
         private System.Windows.Forms.ComboBox modelComboBox;
         private System.Windows.Forms.Button connectionButton;
         private System.Windows.Forms.Button cancelButton;
+        private System.Windows.Forms.Button flashScriptButton;
     }
 }
