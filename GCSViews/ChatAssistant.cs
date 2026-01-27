@@ -710,7 +710,43 @@ namespace MissionPlanner.GCSViews
                 {
                     AppendMessage($"✓ Script uploaded successfully to {targetPath}", Color.Green);
                     AppendMessage("[Debug info:\n" + uploadResult.Replace("SUCCESS\n", "") + "]", Color.Gray);
-                    AppendMessage("[Note: Reboot the flight controller to load the new script]", Color.FromArgb(100, 149, 237));
+                    AppendMessage("[The flight controller needs to be rebooted to load the script]", Color.FromArgb(100, 149, 237));
+
+                    // Show success message and offer to reboot
+                    var rebootResult = CustomMessageBox.Show(
+                        $"✓ Lua script uploaded successfully!\n\n" +
+                        $"File: {fileName}\n" +
+                        $"Target: {targetPath}\n\n" +
+                        $"The flight controller needs to reboot to load the script.\n" +
+                        $"After reboot, watch the Messages tab for:\n" +
+                        $"  \"Scripting: loaded X scripts\"\n\n" +
+                        $"Reboot the flight controller now?",
+                        "Script Upload Successful",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information
+                    );
+
+                    if (rebootResult == (int)DialogResult.Yes)
+                    {
+                        AppendMessage("[Rebooting flight controller...]", Color.Blue);
+
+                        // Send reboot command (false = normal reboot, true = current vehicle only)
+                        if (MainV2.comPort.doReboot(false, true))
+                        {
+                            AppendMessage("✓ Reboot command sent successfully", Color.Green);
+                            AppendMessage("[Watch the Messages tab for 'Scripting: loaded X scripts' message]", Color.FromArgb(100, 149, 237));
+                        }
+                        else
+                        {
+                            AppendMessage("✗ Failed to send reboot command", Color.Red);
+                            AppendMessage("[Please reboot manually via CONFIG > Full Parameter Tree > Reboot]", Color.FromArgb(255, 165, 0));
+                        }
+                    }
+                    else
+                    {
+                        AppendMessage("[Remember to reboot the flight controller to load the script]", Color.FromArgb(255, 165, 0));
+                        AppendMessage("[After reboot, watch Messages tab for 'Scripting: loaded X scripts']", Color.Gray);
+                    }
                 }
                 else
                 {
