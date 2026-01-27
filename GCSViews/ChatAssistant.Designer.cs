@@ -191,20 +191,20 @@ namespace MissionPlanner.GCSViews
             this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
             // 
             // flashScriptButton
-            // 
-            this.flashScriptButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            //
+            this.flashScriptButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.flashScriptButton.BackColor = System.Drawing.Color.FromArgb(100, 149, 237);
             this.flashScriptButton.FlatAppearance.BorderSize = 0;
             this.flashScriptButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.flashScriptButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.flashScriptButton.ForeColor = System.Drawing.Color.White;
-            this.flashScriptButton.Location = new System.Drawing.Point(385, 79);
+            this.flashScriptButton.Location = new System.Drawing.Point(580, 10);
             this.flashScriptButton.Name = "flashScriptButton";
-            this.flashScriptButton.Size = new System.Drawing.Size(100, 23);
+            this.flashScriptButton.Size = new System.Drawing.Size(100, 28);
             this.flashScriptButton.TabIndex = 8;
-            this.flashScriptButton.Text = "Flash FC";
+            this.flashScriptButton.Text = "⚡ Flash FC";
             this.flashScriptButton.UseVisualStyleBackColor = false;
-            this.flashScriptButton.Visible = true;
+            this.flashScriptButton.Visible = false;
             this.flashScriptButton.Click += new System.EventHandler(this.flashScriptButton_Click);
             // 
             // ChatAssistant

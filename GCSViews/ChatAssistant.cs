@@ -30,7 +30,7 @@ namespace MissionPlanner.GCSViews
         {
             InitializeComponent();
             
-            // MANUAL FIX: Ensure Flash button exists and is visible
+            // MANUAL FIX: Ensure Flash button exists with correct positioning
             if (flashScriptButton == null)
             {
                 flashScriptButton = new System.Windows.Forms.Button();
@@ -39,19 +39,26 @@ namespace MissionPlanner.GCSViews
                 flashScriptButton.FlatAppearance.BorderSize = 0;
                 flashScriptButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
                 flashScriptButton.ForeColor = System.Drawing.Color.White;
-                flashScriptButton.Location = new System.Drawing.Point(385, 79);
+                flashScriptButton.Location = new System.Drawing.Point(580, 10);
+                flashScriptButton.Size = new System.Drawing.Size(100, 28);
                 flashScriptButton.Name = "flashScriptButton";
-                flashScriptButton.Size = new System.Drawing.Size(100, 23);
-                flashScriptButton.Text = "Flash FC";
+                flashScriptButton.Text = "⚡ Flash FC";
+                flashScriptButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
                 flashScriptButton.UseVisualStyleBackColor = false;
-                flashScriptButton.Visible = true;
+                flashScriptButton.Visible = false;
+                flashScriptButton.Enabled = false;
                 flashScriptButton.Click += flashScriptButton_Click;
                 bottomToolbar.Controls.Add(flashScriptButton);
             }
             else
             {
-                // Button exists from Designer, just make sure it's visible and in front
-                flashScriptButton.Visible = true;
+                // Button exists from Designer, ensure proper positioning
+                flashScriptButton.Location = new System.Drawing.Point(580, 10);
+                flashScriptButton.Size = new System.Drawing.Size(100, 28);
+                flashScriptButton.Text = "⚡ Flash FC";
+                flashScriptButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+                flashScriptButton.Visible = false;
+                flashScriptButton.Enabled = false;
                 flashScriptButton.BringToFront();
             }
             
@@ -211,13 +218,48 @@ namespace MissionPlanner.GCSViews
                     if (aiResponse.Command.Type == "LUA_SCRIPT" && result.StartsWith("✓"))
                     {
                         var lines = result.Split('\n');
-                        if (lines.Length >= 2)
+
+                        // Parse the result to extract full path
+                        // Format: Line 0: ✓ Lua script saved: {filename}
+                        //         Line 1: 📁 Location: {directory}
+                        //         Line 2: 💾 Full path: {full_path}
+                        //         Line 3: 📊 Size: {size}
+                        //         Line 4: 📝 {description}
+
+                        string fullPath = null;
+                        string description = "Lua script";
+
+                        foreach (var line in lines)
                         {
-                            string filename = lines[0].Replace("✓ Lua script saved: ", "").Trim();
-                            string location = lines[1].Replace("📁 Location: ", "").Trim();
-                            lastSavedScriptPath = System.IO.Path.Combine(location, filename);
-                            lastScriptDescription = lines.Length >= 3 ? lines[2].Replace("📝 ", "").Trim() : "Lua script";
-                            flashScriptButton.Enabled = true;  // Enable the flash button
+                            if (line.Contains("💾 Full path:"))
+                            {
+                                fullPath = line.Replace("💾 Full path:", "").Trim();
+                            }
+                            else if (line.Contains("📝 "))
+                            {
+                                description = line.Replace("📝 ", "").Trim();
+                            }
+                        }
+
+                        // If full path is found, use it
+                        if (!string.IsNullOrEmpty(fullPath))
+                        {
+                            lastSavedScriptPath = fullPath;
+                            lastScriptDescription = description;
+                            flashScriptButton.Enabled = true;
+                            AppendMessage($"[Script ready to flash: {System.IO.Path.GetFileName(fullPath)}]", Color.FromArgb(100, 149, 237));
+                        }
+                        else
+                        {
+                            // Fallback to old method (combine location + filename)
+                            if (lines.Length >= 2)
+                            {
+                                string filename = lines[0].Replace("✓ Lua script saved: ", "").Trim();
+                                string location = lines[1].Replace("📁 Location: ", "").Trim();
+                                lastSavedScriptPath = System.IO.Path.Combine(location, filename);
+                                lastScriptDescription = lines.Length >= 3 ? lines[2].Replace("📝 ", "").Trim() : "Lua script";
+                                flashScriptButton.Enabled = true;
+                            }
                         }
                     }
                     
@@ -486,17 +528,49 @@ namespace MissionPlanner.GCSViews
         {
             try
             {
-                if (string.IsNullOrEmpty(lastSavedScriptPath) || !System.IO.File.Exists(lastSavedScriptPath))
+                // Validate script path exists
+                if (string.IsNullOrEmpty(lastSavedScriptPath))
                 {
-                    AppendMessage("[Error: No script file found to upload]", Color.Red);
+                    AppendMessage("[Error: No script has been generated yet]", Color.Red);
                     return;
                 }
 
+                // Check if file actually exists on disk
+                if (!System.IO.File.Exists(lastSavedScriptPath))
+                {
+                    AppendMessage($"[Error: Script file not found at: {lastSavedScriptPath}]", Color.Red);
+                    AppendMessage("[The file may have been moved or deleted. Generate a new script to continue.]", Color.Red);
+                    lastSavedScriptPath = null;
+                    flashScriptButton.Enabled = false;
+                    return;
+                }
+
+                // Check if MAVLink is connected
+                if (MainV2.comPort == null || !MainV2.comPort.BaseStream.IsOpen)
+                {
+                    AppendMessage("[Error: Flight controller not connected. Please connect to a vehicle first.]", Color.Red);
+                    CustomMessageBox.Show(
+                        "Cannot upload script - no vehicle connected.\n\n" +
+                        "Please connect to a flight controller first.",
+                        Strings.ERROR
+                    );
+                    return;
+                }
+
+                // Get file info for display
+                var fileInfo = new System.IO.FileInfo(lastSavedScriptPath);
+                string fileName = System.IO.Path.GetFileName(lastSavedScriptPath);
+
                 var result = CustomMessageBox.Show(
                     $"Upload Lua script to flight controller?\n\n" +
-                    $"File: {System.IO.Path.GetFileName(lastSavedScriptPath)}\n" +
+                    $"File: {fileName}\n" +
+                    $"Size: {fileInfo.Length} bytes\n" +
                     $"Description: {lastScriptDescription}\n\n" +
-                    $"The script will be uploaded to /APM/scripts/ on the SD card.",
+                    $"Target: /APM/scripts/{fileName}\n\n" +
+                    $"Make sure the flight controller has:\n" +
+                    $"• SD card inserted and formatted\n" +
+                    $"• SCR_ENABLE parameter set to 1\n" +
+                    $"• Enough free space for the script",
                     "Flash Script to FC",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Question
@@ -508,33 +582,62 @@ namespace MissionPlanner.GCSViews
                     return;
                 }
 
-                AppendMessage($"[Uploading {System.IO.Path.GetFileName(lastSavedScriptPath)} to flight controller...]", Color.Blue);
+                AppendMessage($"[Uploading {fileName} ({fileInfo.Length} bytes) to flight controller...]", Color.Blue);
+                AppendMessage($"[Local path: {lastSavedScriptPath}]", Color.Gray);
 
-                string targetPath = "/APM/scripts/" + System.IO.Path.GetFileName(lastSavedScriptPath);
-                
+                string targetPath = "/APM/scripts/" + fileName;
+
                 await Task.Run(() =>
                 {
                     try
                     {
-                        var ftp = new MAVFtp(MainV2.comPort, MainV2.comPort.MAV.sysid, MainV2.comPort.MAV.compid);
+                        // Verify file exists one more time before reading
+                        if (!System.IO.File.Exists(lastSavedScriptPath))
+                        {
+                            throw new Exception($"File disappeared: {lastSavedScriptPath}");
+                        }
+
+                        // Read file bytes
                         var fileBytes = System.IO.File.ReadAllBytes(lastSavedScriptPath);
+
+                        if (fileBytes == null || fileBytes.Length == 0)
+                        {
+                            throw new Exception("File is empty or could not be read");
+                        }
+
+                        // Create MAVFTP instance
+                        var ftp = new MAVFtp(MainV2.comPort, MainV2.comPort.MAV.sysid, MainV2.comPort.MAV.compid);
+
+                        // Upload file via MAVFTP
                         ftp.UploadFile(targetPath, new System.IO.MemoryStream(fileBytes), null);
                     }
                     catch (Exception uploadEx)
                     {
-                        throw new Exception($"MAVFTP upload failed: {uploadEx.Message}");
+                        throw new Exception($"Upload failed: {uploadEx.Message}");
                     }
                 });
 
                 AppendMessage($"✓ Script uploaded successfully to {targetPath}", Color.Green);
-                AppendMessage("[Note: You may need to reboot the flight controller to load the new script]", Color.FromArgb(100, 149, 237));
-                flashScriptButton.Enabled = true;
+                AppendMessage("[Note: Reboot the flight controller to load the new script]", Color.FromArgb(100, 149, 237));
             }
             catch (Exception ex)
             {
-                AppendMessage($"[Error uploading script: {ex.Message}]", Color.Red);
+                AppendMessage($"[✗ Upload failed: {ex.Message}]", Color.Red);
+
+                string errorDetails = ex.Message;
+                if (ex.InnerException != null)
+                {
+                    errorDetails += $"\n\nDetails: {ex.InnerException.Message}";
+                }
+
                 CustomMessageBox.Show(
-                    $"Failed to upload script:\n\n{ex.Message}\n\nMake sure the flight controller is connected and MAVFTP is supported.",
+                    $"Failed to upload script:\n\n{errorDetails}\n\n" +
+                    $"Troubleshooting:\n" +
+                    $"• Ensure flight controller is connected\n" +
+                    $"• Check SD card is inserted and working\n" +
+                    $"• Verify SCR_ENABLE parameter is set to 1\n" +
+                    $"• Try rebooting the flight controller\n" +
+                    $"• Check that MAVFTP is supported by your firmware",
                     Strings.ERROR
                 );
             }

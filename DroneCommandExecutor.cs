@@ -485,11 +485,24 @@ namespace MissionPlanner
                 string filename = $"{baseFilename}_{timestamp}.lua";
                 string fullPath = System.IO.Path.Combine(scriptDir, filename);
 
+                // Ensure the path is absolute
+                fullPath = System.IO.Path.GetFullPath(fullPath);
+
                 // Save the script
                 System.IO.File.WriteAllText(fullPath, luaCode);
 
+                // Verify file was created
+                if (!System.IO.File.Exists(fullPath))
+                {
+                    return $"✗ Error: File was not created at {fullPath}";
+                }
+
+                var fileInfo = new System.IO.FileInfo(fullPath);
+
                 return $"✓ Lua script saved: {filename}\n" +
                        $"📁 Location: {scriptDir}\n" +
+                       $"💾 Full path: {fullPath}\n" +
+                       $"📊 Size: {fileInfo.Length} bytes\n" +
                        $"📝 {description}";
             }
             catch (Exception ex)
