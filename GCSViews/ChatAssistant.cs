@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Threading;
+using System.Linq;
 
 namespace MissionPlanner.GCSViews
 {
@@ -589,7 +590,7 @@ namespace MissionPlanner.GCSViews
                 string targetDir = "/APM/scripts";
                 string targetPath = targetDir + "/" + fileName;
 
-                await Task.Run(() =>
+                string uploadResult = await Task.Run(() =>
                 {
                     try
                     {
@@ -610,34 +611,92 @@ namespace MissionPlanner.GCSViews
                         // Create MAVFTP instance
                         var ftp = new MAVFtp(MainV2.comPort, MainV2.comPort.MAV.sysid, MainV2.comPort.MAV.compid);
 
-                        // Ensure target directory exists on SD card
-                        // This will create /APM/scripts/ if it doesn't exist
-                        // If it already exists, MAVFTP will return success (EEXIST is handled)
+                        // Try to list root directory first to verify MAVFTP is working
+                        string debugInfo = "";
                         try
                         {
-                            ftp.kCmdCreateDirectory(targetDir, null);
+                            var rootList = ftp.kCmdListDirectory("/", null);
+                            debugInfo += $"✓ MAVFTP working - Found {rootList.Count} items in root\n";
+
+                            // Check if APM directory exists
+                            if (rootList.Any(f => f.Name == "APM"))
+                            {
+                                debugInfo += "✓ /APM directory exists\n";
+
+                                // Check if scripts directory exists
+                                var apmList = ftp.kCmdListDirectory("/APM", null);
+                                if (apmList.Any(f => f.Name == "scripts"))
+                                {
+                                    debugInfo += "✓ /APM/scripts directory exists\n";
+                                }
+                                else
+                                {
+                                    debugInfo += "⚠ /APM/scripts directory does NOT exist - creating...\n";
+                                }
+                            }
+                            else
+                            {
+                                debugInfo += "⚠ /APM directory does NOT exist - need to create it\n";
+                                return "ERROR: /APM directory not found. This is unusual. Try:\n" +
+                                       "1. Reboot flight controller\n" +
+                                       "2. Check SD card is formatted (FAT32)\n" +
+                                       "3. Check ArduPilot firmware is recent\n\n" + debugInfo;
+                            }
+                        }
+                        catch (Exception listEx)
+                        {
+                            debugInfo += $"✗ MAVFTP directory listing failed: {listEx.Message}\n";
+                            return "ERROR: Cannot list directories via MAVFTP. This means:\n" +
+                                   "• SD card might not be inserted or not formatted\n" +
+                                   "• MAVFTP not supported by your firmware\n" +
+                                   "• Flight controller communication issue\n\n" + debugInfo;
+                        }
+
+                        // Now try to create scripts directory if needed
+                        try
+                        {
+                            bool dirCreated = ftp.kCmdCreateDirectory(targetDir, null);
+                            if (dirCreated)
+                            {
+                                debugInfo += $"✓ Created {targetDir} directory\n";
+                            }
                         }
                         catch (Exception dirEx)
                         {
                             // Directory might already exist, that's OK
-                            // Only throw if it's a critical error
-                            if (!dirEx.Message.Contains("EEXIST"))
+                            if (dirEx.Message.Contains("EEXIST"))
+                            {
+                                debugInfo += $"✓ {targetDir} already exists\n";
+                            }
+                            else
                             {
                                 throw new Exception($"Failed to create directory {targetDir}: {dirEx.Message}");
                             }
                         }
 
                         // Upload file via MAVFTP
+                        debugInfo += $"Uploading to {targetPath}...\n";
                         ftp.UploadFile(targetPath, new System.IO.MemoryStream(fileBytes), null);
+
+                        return "SUCCESS\n" + debugInfo;
                     }
                     catch (Exception uploadEx)
                     {
-                        throw new Exception($"Upload failed: {uploadEx.Message}");
+                        return $"ERROR: {uploadEx.Message}";
                     }
                 });
 
-                AppendMessage($"✓ Script uploaded successfully to {targetPath}", Color.Green);
-                AppendMessage("[Note: Reboot the flight controller to load the new script]", Color.FromArgb(100, 149, 237));
+                // Check result
+                if (uploadResult.StartsWith("SUCCESS"))
+                {
+                    AppendMessage($"✓ Script uploaded successfully to {targetPath}", Color.Green);
+                    AppendMessage("[Debug info:\n" + uploadResult.Replace("SUCCESS\n", "") + "]", Color.Gray);
+                    AppendMessage("[Note: Reboot the flight controller to load the new script]", Color.FromArgb(100, 149, 237));
+                }
+                else
+                {
+                    throw new Exception(uploadResult);
+                }
             }
             catch (Exception ex)
             {
