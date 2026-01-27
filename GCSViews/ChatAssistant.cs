@@ -584,8 +584,10 @@ namespace MissionPlanner.GCSViews
 
                 AppendMessage($"[Uploading {fileName} ({fileInfo.Length} bytes) to flight controller...]", Color.Blue);
                 AppendMessage($"[Local path: {lastSavedScriptPath}]", Color.Gray);
+                AppendMessage("[Creating /APM/scripts/ directory on SD card if needed...]", Color.Gray);
 
-                string targetPath = "/APM/scripts/" + fileName;
+                string targetDir = "/APM/scripts";
+                string targetPath = targetDir + "/" + fileName;
 
                 await Task.Run(() =>
                 {
@@ -607,6 +609,23 @@ namespace MissionPlanner.GCSViews
 
                         // Create MAVFTP instance
                         var ftp = new MAVFtp(MainV2.comPort, MainV2.comPort.MAV.sysid, MainV2.comPort.MAV.compid);
+
+                        // Ensure target directory exists on SD card
+                        // This will create /APM/scripts/ if it doesn't exist
+                        // If it already exists, MAVFTP will return success (EEXIST is handled)
+                        try
+                        {
+                            ftp.kCmdCreateDirectory(targetDir, null);
+                        }
+                        catch (Exception dirEx)
+                        {
+                            // Directory might already exist, that's OK
+                            // Only throw if it's a critical error
+                            if (!dirEx.Message.Contains("EEXIST"))
+                            {
+                                throw new Exception($"Failed to create directory {targetDir}: {dirEx.Message}");
+                            }
+                        }
 
                         // Upload file via MAVFTP
                         ftp.UploadFile(targetPath, new System.IO.MemoryStream(fileBytes), null);
