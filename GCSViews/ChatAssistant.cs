@@ -619,7 +619,8 @@ namespace MissionPlanner.GCSViews
                             debugInfo += $"✓ MAVFTP working - Found {rootList.Count} items in root\n";
 
                             // Check if APM directory exists
-                            if (rootList.Any(f => f.Name == "APM"))
+                            bool apmExists = rootList.Any(f => f.Name == "APM");
+                            if (apmExists)
                             {
                                 debugInfo += "✓ /APM directory exists\n";
 
@@ -627,20 +628,16 @@ namespace MissionPlanner.GCSViews
                                 var apmList = ftp.kCmdListDirectory("/APM", null);
                                 if (apmList.Any(f => f.Name == "scripts"))
                                 {
-                                    debugInfo += "✓ /APM/scripts directory exists\n";
+                                    debugInfo += "✓ /APM/scripts directory already exists\n";
                                 }
                                 else
                                 {
-                                    debugInfo += "⚠ /APM/scripts directory does NOT exist - creating...\n";
+                                    debugInfo += "⚠ /APM/scripts directory does NOT exist - will create it\n";
                                 }
                             }
                             else
                             {
-                                debugInfo += "⚠ /APM directory does NOT exist - need to create it\n";
-                                return "ERROR: /APM directory not found. This is unusual. Try:\n" +
-                                       "1. Reboot flight controller\n" +
-                                       "2. Check SD card is formatted (FAT32)\n" +
-                                       "3. Check ArduPilot firmware is recent\n\n" + debugInfo;
+                                debugInfo += "⚠ /APM directory does NOT exist (common in SITL) - will create it\n";
                             }
                         }
                         catch (Exception listEx)
@@ -652,11 +649,33 @@ namespace MissionPlanner.GCSViews
                                    "• Flight controller communication issue\n\n" + debugInfo;
                         }
 
-                        // Now try to create scripts directory if needed
+                        // Create /APM directory if it doesn't exist (needed for SITL)
                         try
                         {
-                            bool dirCreated = ftp.kCmdCreateDirectory(targetDir, null);
-                            if (dirCreated)
+                            bool apmCreated = ftp.kCmdCreateDirectory("/APM", null);
+                            if (apmCreated)
+                            {
+                                debugInfo += "✓ Created /APM directory\n";
+                            }
+                        }
+                        catch (Exception dirEx)
+                        {
+                            // Directory might already exist, that's OK
+                            if (dirEx.Message.Contains("EEXIST"))
+                            {
+                                debugInfo += "✓ /APM directory confirmed\n";
+                            }
+                            else
+                            {
+                                throw new Exception($"Failed to create /APM directory: {dirEx.Message}");
+                            }
+                        }
+
+                        // Now create /APM/scripts directory
+                        try
+                        {
+                            bool scriptsCreated = ftp.kCmdCreateDirectory(targetDir, null);
+                            if (scriptsCreated)
                             {
                                 debugInfo += $"✓ Created {targetDir} directory\n";
                             }
@@ -666,7 +685,7 @@ namespace MissionPlanner.GCSViews
                             // Directory might already exist, that's OK
                             if (dirEx.Message.Contains("EEXIST"))
                             {
-                                debugInfo += $"✓ {targetDir} already exists\n";
+                                debugInfo += $"✓ {targetDir} directory confirmed\n";
                             }
                             else
                             {
