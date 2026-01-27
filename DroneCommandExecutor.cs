@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using MissionPlanner.Comms;
 
@@ -119,6 +120,9 @@ namespace MissionPlanner
                             return SetParameter(paramName, paramValue);
                         }
                         return "[Error: SET_PARAM requires name and value parameters]";
+
+                    case "LUA_SCRIPT":
+                        return SaveLuaScript(command.Parameters);
 
                     default:
                         return $"[Error: Unknown command type: {command.Type}]";
@@ -448,6 +452,49 @@ namespace MissionPlanner
             catch (Exception ex)
             {
                 return $"[Error: {ex.Message}]";
+            }
+        }
+
+        /// <summary>
+        /// Save Lua script to Scripts/LuaScripts folder
+        /// </summary>
+        private string SaveLuaScript(Dictionary<string, object> parameters)
+        {
+            try
+            {
+                if (!parameters.ContainsKey("code"))
+                {
+                    return "✗ Error: No Lua code provided";
+                }
+
+                string luaCode = parameters["code"].ToString();
+                string description = parameters.ContainsKey("description") ? parameters["description"].ToString() : "Custom script";
+                string suggestedFilename = parameters.ContainsKey("suggested_filename") ? parameters["suggested_filename"].ToString() : "custom_script.lua";
+
+                // Create Scripts/LuaScripts directory if it doesn't exist
+                string scriptDir = System.IO.Path.Combine(
+                    System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
+                    "Scripts",
+                    "LuaScripts"
+                );
+                System.IO.Directory.CreateDirectory(scriptDir);
+
+                // Generate timestamped filename
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string baseFilename = System.IO.Path.GetFileNameWithoutExtension(suggestedFilename);
+                string filename = $"{baseFilename}_{timestamp}.lua";
+                string fullPath = System.IO.Path.Combine(scriptDir, filename);
+
+                // Save the script
+                System.IO.File.WriteAllText(fullPath, luaCode);
+
+                return $"✓ Lua script saved: {filename}\n" +
+                       $"📁 Location: {scriptDir}\n" +
+                       $"📝 {description}";
+            }
+            catch (Exception ex)
+            {
+                return $"✗ Error saving Lua script: {ex.Message}";
             }
         }
     }

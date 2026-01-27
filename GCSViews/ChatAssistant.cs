@@ -30,6 +30,31 @@ namespace MissionPlanner.GCSViews
         {
             InitializeComponent();
             
+            // MANUAL FIX: Ensure Flash button exists and is visible
+            if (flashScriptButton == null)
+            {
+                flashScriptButton = new System.Windows.Forms.Button();
+                flashScriptButton.BackColor = System.Drawing.Color.FromArgb(100, 149, 237);
+                flashScriptButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+                flashScriptButton.FlatAppearance.BorderSize = 0;
+                flashScriptButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+                flashScriptButton.ForeColor = System.Drawing.Color.White;
+                flashScriptButton.Location = new System.Drawing.Point(385, 79);
+                flashScriptButton.Name = "flashScriptButton";
+                flashScriptButton.Size = new System.Drawing.Size(100, 23);
+                flashScriptButton.Text = "Flash FC";
+                flashScriptButton.UseVisualStyleBackColor = false;
+                flashScriptButton.Visible = true;
+                flashScriptButton.Click += flashScriptButton_Click;
+                bottomToolbar.Controls.Add(flashScriptButton);
+            }
+            else
+            {
+                // Button exists from Designer, just make sure it's visible and in front
+                flashScriptButton.Visible = true;
+                flashScriptButton.BringToFront();
+            }
+            
             // Initialize AI backend service
             aiService = new AIBackendService("http://localhost:5000", 30);
             
@@ -192,6 +217,7 @@ namespace MissionPlanner.GCSViews
                             string location = lines[1].Replace("📁 Location: ", "").Trim();
                             lastSavedScriptPath = System.IO.Path.Combine(location, filename);
                             lastScriptDescription = lines.Length >= 3 ? lines[2].Replace("📝 ", "").Trim() : "Lua script";
+                            flashScriptButton.Enabled = true;  // Enable the flash button
                         }
                     }
                     

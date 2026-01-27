@@ -198,13 +198,13 @@ namespace MissionPlanner.GCSViews
             this.flashScriptButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.flashScriptButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.flashScriptButton.ForeColor = System.Drawing.Color.White;
-            this.flashScriptButton.Location = new System.Drawing.Point(400, 79);
+            this.flashScriptButton.Location = new System.Drawing.Point(385, 79);
             this.flashScriptButton.Name = "flashScriptButton";
-            this.flashScriptButton.Size = new System.Drawing.Size(120, 25);
+            this.flashScriptButton.Size = new System.Drawing.Size(100, 23);
             this.flashScriptButton.TabIndex = 8;
-            this.flashScriptButton.Text = "Flash to FC";
+            this.flashScriptButton.Text = "Flash FC";
             this.flashScriptButton.UseVisualStyleBackColor = false;
-            this.flashScriptButton.Visible = false;
+            this.flashScriptButton.Visible = true;
             this.flashScriptButton.Click += new System.EventHandler(this.flashScriptButton_Click);
             // 
             // ChatAssistant
