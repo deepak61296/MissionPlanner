@@ -41,11 +41,10 @@ namespace MissionPlanner.GCSViews
             this.flashScriptButton = new System.Windows.Forms.Button();
             this.bottomToolbar.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // chatHistoryBox
-            // 
-            this.chatHistoryBox.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            //
+            // chatHistoryBox - anchored to Top, Left, Right only (not Bottom) to allow dynamic height
+            //
+            this.chatHistoryBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.chatHistoryBox.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
             this.chatHistoryBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
@@ -141,10 +140,10 @@ namespace MissionPlanner.GCSViews
             this.modelComboBox.Name = "modelComboBox";
             this.modelComboBox.Size = new System.Drawing.Size(150, 23);
             this.modelComboBox.TabIndex = 5;
-            // 
-            // inputTextBox
-            // 
-            this.inputTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            //
+            // inputTextBox - spans from left, leaves room for Flash and Send buttons
+            //
+            this.inputTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.inputTextBox.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(50)))), ((int)(((byte)(50)))), ((int)(((byte)(50)))));
             this.inputTextBox.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
@@ -153,44 +152,44 @@ namespace MissionPlanner.GCSViews
             this.inputTextBox.Location = new System.Drawing.Point(10, 10);
             this.inputTextBox.Multiline = true;
             this.inputTextBox.Name = "inputTextBox";
-            this.inputTextBox.Size = new System.Drawing.Size(670, 60);
+            this.inputTextBox.Size = new System.Drawing.Size(565, 60);
             this.inputTextBox.TabIndex = 0;
             this.inputTextBox.KeyDown += new System.Windows.Forms.KeyEventHandler(this.inputTextBox_KeyDown);
-            // 
-            // sendButton
-            // 
+            //
+            // sendButton - rightmost button
+            //
             this.sendButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.sendButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(120)))), ((int)(((byte)(215)))));
             this.sendButton.FlatAppearance.BorderSize = 0;
             this.sendButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.sendButton.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.sendButton.ForeColor = System.Drawing.Color.White;
-            this.sendButton.Location = new System.Drawing.Point(690, 10);
+            this.sendButton.Location = new System.Drawing.Point(695, 10);
             this.sendButton.Name = "sendButton";
-            this.sendButton.Size = new System.Drawing.Size(100, 60);
+            this.sendButton.Size = new System.Drawing.Size(95, 60);
             this.sendButton.TabIndex = 1;
             this.sendButton.Text = "Send";
             this.sendButton.UseVisualStyleBackColor = false;
             this.sendButton.Click += new System.EventHandler(this.sendButton_Click);
-            // 
-            // cancelButton
-            // 
-            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            //
+            // cancelButton - same position as Send, shown during processing
+            //
+            this.cancelButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.cancelButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(53)))), ((int)(((byte)(69)))));
             this.cancelButton.FlatAppearance.BorderSize = 0;
             this.cancelButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.cancelButton.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.cancelButton.ForeColor = System.Drawing.Color.White;
-            this.cancelButton.Location = new System.Drawing.Point(690, 10);
+            this.cancelButton.Location = new System.Drawing.Point(695, 10);
             this.cancelButton.Name = "cancelButton";
-            this.cancelButton.Size = new System.Drawing.Size(100, 60);
+            this.cancelButton.Size = new System.Drawing.Size(95, 60);
             this.cancelButton.TabIndex = 7;
             this.cancelButton.Text = "Cancel";
             this.cancelButton.UseVisualStyleBackColor = false;
             this.cancelButton.Visible = false;
             this.cancelButton.Click += new System.EventHandler(this.cancelButton_Click);
-            // 
-            // flashScriptButton
+            //
+            // flashScriptButton - between input and Send button
             //
             this.flashScriptButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.flashScriptButton.BackColor = System.Drawing.Color.FromArgb(100, 149, 237);
@@ -198,9 +197,9 @@ namespace MissionPlanner.GCSViews
             this.flashScriptButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.flashScriptButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.flashScriptButton.ForeColor = System.Drawing.Color.White;
-            this.flashScriptButton.Location = new System.Drawing.Point(580, 10);
+            this.flashScriptButton.Location = new System.Drawing.Point(585, 10);
             this.flashScriptButton.Name = "flashScriptButton";
-            this.flashScriptButton.Size = new System.Drawing.Size(100, 28);
+            this.flashScriptButton.Size = new System.Drawing.Size(100, 60);
             this.flashScriptButton.TabIndex = 8;
             this.flashScriptButton.Text = "⚡ Flash FC";
             this.flashScriptButton.UseVisualStyleBackColor = false;

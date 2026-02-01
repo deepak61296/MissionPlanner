@@ -36,36 +36,15 @@ namespace MissionPlanner.GCSViews
         {
             InitializeComponent();
             
-            // MANUAL FIX: Ensure Flash button exists with correct positioning
-            if (flashScriptButton == null)
+            // Ensure Flash button has correct positioning (left of Send button)
+            if (flashScriptButton != null)
             {
-                flashScriptButton = new System.Windows.Forms.Button();
-                flashScriptButton.BackColor = System.Drawing.Color.FromArgb(100, 149, 237);
-                flashScriptButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-                flashScriptButton.FlatAppearance.BorderSize = 0;
-                flashScriptButton.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-                flashScriptButton.ForeColor = System.Drawing.Color.White;
-                flashScriptButton.Location = new System.Drawing.Point(580, 10);
-                flashScriptButton.Size = new System.Drawing.Size(100, 28);
-                flashScriptButton.Name = "flashScriptButton";
-                flashScriptButton.Text = "⚡ Flash FC";
-                flashScriptButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-                flashScriptButton.UseVisualStyleBackColor = false;
-                flashScriptButton.Visible = false;
-                flashScriptButton.Enabled = false;
-                flashScriptButton.Click += flashScriptButton_Click;
-                bottomToolbar.Controls.Add(flashScriptButton);
-            }
-            else
-            {
-                // Button exists from Designer, ensure proper positioning
-                flashScriptButton.Location = new System.Drawing.Point(580, 10);
-                flashScriptButton.Size = new System.Drawing.Size(100, 28);
+                flashScriptButton.Location = new System.Drawing.Point(585, 10);
+                flashScriptButton.Size = new System.Drawing.Size(100, 60);
                 flashScriptButton.Text = "⚡ Flash FC";
                 flashScriptButton.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
                 flashScriptButton.Visible = false;
                 flashScriptButton.Enabled = false;
-                flashScriptButton.BringToFront();
             }
             
             // Initialize Debug Console
@@ -382,39 +361,62 @@ namespace MissionPlanner.GCSViews
         /// <summary>
         /// Initialize the debug console UI
         /// </summary>
+        private int debugConsoleHeight = 150;
+        private Panel debugPanel;
+        private Label debugLabel;
+
         private void InitializeDebugConsole()
         {
-            // Create debug toggle button - more visible, positioned in bottom toolbar
+            // Create debug toggle button - in bottom row after Model dropdown
             debugToggleButton = new Button();
-            debugToggleButton.Text = "🔧 Debug";
-            debugToggleButton.Size = new Size(75, 25);
-            debugToggleButton.Location = new Point(470, 5);  // Right side of bottom toolbar
-            debugToggleButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            debugToggleButton.Text = "Debug";
+            debugToggleButton.Size = new Size(60, 23);
+            debugToggleButton.Location = new Point(385, 79);  // After modelComboBox (225+150=375, +10 gap)
+            debugToggleButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             debugToggleButton.FlatStyle = FlatStyle.Flat;
-            debugToggleButton.BackColor = Color.FromArgb(80, 80, 80);
-            debugToggleButton.ForeColor = Color.Yellow;
-            debugToggleButton.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            debugToggleButton.FlatAppearance.BorderColor = Color.Yellow;
+            debugToggleButton.BackColor = Color.FromArgb(50, 50, 50);
+            debugToggleButton.ForeColor = Color.LightGray;
+            debugToggleButton.Font = new Font("Segoe UI", 8F);
+            debugToggleButton.FlatAppearance.BorderColor = Color.Gray;
             debugToggleButton.FlatAppearance.BorderSize = 1;
             debugToggleButton.Click += DebugToggleButton_Click;
             debugToggleButton.Cursor = Cursors.Hand;
             bottomToolbar.Controls.Add(debugToggleButton);
-            debugToggleButton.BringToFront();
 
-            // Create debug console (hidden by default) - positioned above bottomToolbar
+            // Create debug panel container with header
+            debugPanel = new Panel();
+            debugPanel.Name = "debugPanel";
+            debugPanel.BackColor = Color.Black;
+            debugPanel.Visible = false;
+            debugPanel.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            debugPanel.Location = new Point(0, bottomToolbar.Top - debugConsoleHeight);
+            debugPanel.Size = new Size(this.Width, debugConsoleHeight);
+
+            // Debug header label
+            debugLabel = new Label();
+            debugLabel.Text = " DEBUG CONSOLE";
+            debugLabel.BackColor = Color.FromArgb(30, 30, 30);
+            debugLabel.ForeColor = Color.Cyan;
+            debugLabel.Font = new Font("Consolas", 9F, FontStyle.Bold);
+            debugLabel.Dock = DockStyle.Top;
+            debugLabel.Height = 20;
+            debugLabel.TextAlign = ContentAlignment.MiddleLeft;
+            debugPanel.Controls.Add(debugLabel);
+
+            // Create debug console RichTextBox inside panel
             debugConsole = new RichTextBox();
-            debugConsole.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            debugConsole.Height = 180;
-            debugConsole.Location = new Point(0, chatHistoryBox.Bottom - 180);
-            debugConsole.Width = this.Width;
-            debugConsole.BackColor = Color.FromArgb(15, 15, 25);
+            debugConsole.Name = "debugConsole";
+            debugConsole.BackColor = Color.Black;
             debugConsole.ForeColor = Color.LightGreen;
             debugConsole.Font = new Font("Consolas", 9F);
             debugConsole.ReadOnly = true;
-            debugConsole.BorderStyle = BorderStyle.FixedSingle;
-            debugConsole.Visible = false;
-            this.Controls.Add(debugConsole);
-            debugConsole.BringToFront();
+            debugConsole.BorderStyle = BorderStyle.None;
+            debugConsole.ScrollBars = RichTextBoxScrollBars.Vertical;
+            debugConsole.Dock = DockStyle.Fill;
+            debugPanel.Controls.Add(debugConsole);
+
+            // Add panel to form
+            this.Controls.Add(debugPanel);
         }
 
         /// <summary>
@@ -423,30 +425,41 @@ namespace MissionPlanner.GCSViews
         private void DebugToggleButton_Click(object sender, EventArgs e)
         {
             debugConsoleVisible = !debugConsoleVisible;
-            debugConsole.Visible = debugConsoleVisible;
 
-            // Update button appearance based on state
             if (debugConsoleVisible)
             {
-                debugToggleButton.BackColor = Color.FromArgb(0, 100, 0);  // Dark green when active
-                debugToggleButton.Text = "🔧 Debug ▲";
+                // Update button appearance - active state (green)
+                debugToggleButton.BackColor = Color.FromArgb(0, 80, 0);
+                debugToggleButton.Text = "Debug ▲";
+                debugToggleButton.ForeColor = Color.LimeGreen;
                 debugToggleButton.FlatAppearance.BorderColor = Color.LimeGreen;
 
-                // Adjust chatHistoryBox size
-                chatHistoryBox.Height = bottomToolbar.Top - 180;
-                debugConsole.Location = new Point(0, chatHistoryBox.Bottom);
-                debugConsole.Width = this.Width;
-                debugConsole.BringToFront();
-                DebugLog("=== Debug Console Enabled ===");
-                DebugLog("This console shows MAVFTP operations, upload status, and errors.");
-                DebugLog("Use 'Flash' button to see detailed upload logs.");
+                // Position debug panel between chat and bottomToolbar
+                int panelTop = bottomToolbar.Top - debugConsoleHeight;
+                debugPanel.Location = new Point(0, panelTop);
+                debugPanel.Size = new Size(this.Width, debugConsoleHeight);
+
+                // Shrink chat history to make room for debug panel
+                chatHistoryBox.Height = panelTop;
+
+                // Show debug panel and bring to front
+                debugPanel.Visible = true;
+                debugPanel.BringToFront();
+
+                DebugLog("=== Debug Console Ready ===");
             }
             else
             {
-                debugToggleButton.BackColor = Color.FromArgb(80, 80, 80);
-                debugToggleButton.Text = "🔧 Debug";
-                debugToggleButton.FlatAppearance.BorderColor = Color.Yellow;
+                // Update button appearance - inactive state (gray)
+                debugToggleButton.BackColor = Color.FromArgb(50, 50, 50);
+                debugToggleButton.Text = "Debug";
+                debugToggleButton.ForeColor = Color.LightGray;
+                debugToggleButton.FlatAppearance.BorderColor = Color.Gray;
 
+                // Hide debug panel
+                debugPanel.Visible = false;
+
+                // Restore chat height to fill space above bottomToolbar
                 chatHistoryBox.Height = bottomToolbar.Top;
             }
         }
@@ -509,12 +522,37 @@ namespace MissionPlanner.GCSViews
         {
             // Apply theme
             ThemeManager.ApplyThemeTo(this);
-            
+
+            // Hook up resize handler to maintain layout
+            this.Resize += ChatAssistant_Resize;
+
+            // Set initial chat height
+            chatHistoryBox.Height = bottomToolbar.Top;
+
             // Display welcome message
             AppendMessage("Assistant: Welcome to the ArduPilot AI Assistant! How can I help you today?", Color.Black);
-            
+
             // Check AI backend connection
             await CheckBackendConnectionAsync();
+        }
+
+        /// <summary>
+        /// Handle resize to maintain layout
+        /// </summary>
+        private void ChatAssistant_Resize(object sender, EventArgs e)
+        {
+            // Update chat height based on debug panel visibility
+            if (debugConsoleVisible && debugPanel != null)
+            {
+                int panelTop = bottomToolbar.Top - debugConsoleHeight;
+                debugPanel.Location = new Point(0, panelTop);
+                debugPanel.Size = new Size(this.Width, debugConsoleHeight);
+                chatHistoryBox.Height = panelTop;
+            }
+            else
+            {
+                chatHistoryBox.Height = bottomToolbar.Top;
+            }
         }
 
         /// <summary>
