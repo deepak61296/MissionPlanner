@@ -673,7 +673,25 @@ namespace MissionPlanner.GCSViews.ConfigurationView
 
             Params.SortCompare += OnParamsOnSortCompare;
 
-            Params.Sort(Params.Columns[Command.Index], ListSortDirection.Ascending);
+            try
+            {
+                // Clear current cell before sorting to avoid "invisible cell" error
+                if (Params.CurrentCell != null)
+                {
+                    Params.CurrentCell = null;
+                }
+
+                // Only sort if we have rows
+                if (Params.Rows.Count > 0 && Command != null && Command.Index >= 0)
+                {
+                    Params.Sort(Params.Columns[Command.Index], ListSortDirection.Ascending);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Error("Error sorting parameters: " + ex.Message);
+                // Continue without sorting if it fails
+            }
 
             Params.Visible = true;
 
@@ -1059,7 +1077,17 @@ namespace MissionPlanner.GCSViews.ConfigurationView
                     Settings.Instance.SetList("fav_params", list.Where(s => s != name));
                 }
 
-                Params.Sort(Command, ListSortDirection.Ascending);
+                try
+                {
+                    if (Params != null && Params.Rows.Count > 0 && Command != null)
+                    {
+                        Params.Sort(Command, ListSortDirection.Ascending);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Error("Error sorting after favorites change: " + ex.Message);
+                }
             }
         }
 
@@ -1152,20 +1180,47 @@ namespace MissionPlanner.GCSViews.ConfigurationView
         // Create and place the relevant control in the options column when a row is entered
         private void Params_RowEnter(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex < 0)
+            try
+            {
+                if (e == null || e.RowIndex < 0)
+                    return;
+
+                if (Params == null || Params.Controls == null)
+                    return;
+
+                if (optionsControl != null)
+                {
+                    try
+                    {
+                        if (Params.Controls != null && Params.Controls.Contains(optionsControl))
+                            Params.Controls.Remove(optionsControl);
+
+                        if (optionsControl != null && !optionsControl.IsDisposed)
+                            optionsControl.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        // Ignore disposal errors
+                        System.Diagnostics.Debug.WriteLine($"Error disposing optionsControl: {ex.Message}");
+                    }
+                    optionsControl = null;
+                }
+
+                // Null checks to prevent crash when navigating rows
+                if (Command == null || Command.Index < 0 || e.RowIndex >= Params.Rows.Count)
+                    return;
+
+                var cell = Params[Command.Index, e.RowIndex];
+                if (cell == null || cell.Value == null)
+                    return;
+
+            string param_name = cell.Value.ToString();
+            if (string.IsNullOrEmpty(param_name))
                 return;
 
-            if (optionsControl != null)
-            {
-                try
-                {
-                    Params.Controls.Remove(optionsControl);
-                    optionsControl.Dispose();
-                } catch { }
-                optionsControl = null;
-            }
+            if (MainV2.comPort?.MAV?.cs?.firmware == null)
+                return;
 
-            string param_name = Params[Command.Index, e.RowIndex].Value.ToString();
             string vehicle = MainV2.comPort.MAV.cs.firmware.ToString();
             var options = ParameterMetaDataRepository.GetParameterOptionsInt(param_name, vehicle);
             var bitmask = ParameterMetaDataRepository.GetParameterBitMaskInt(param_name, vehicle);
@@ -1316,7 +1371,13 @@ namespace MissionPlanner.GCSViews.ConfigurationView
                 }
 
             }
-
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't crash
+                System.Diagnostics.Debug.WriteLine($"Error in Params_RowEnter: {ex.Message}");
+                Console.WriteLine($"Error in Params_RowEnter: {ex}");
+            }
         }
 
         // Upate the size and location of our options control whenever a scroll or resize happens

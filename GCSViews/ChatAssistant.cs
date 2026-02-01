@@ -24,6 +24,11 @@ namespace MissionPlanner.GCSViews
         private string lastSavedScriptPath = null;
         private string lastScriptDescription = null;
 
+        // Debug console components
+        private RichTextBox debugConsole;
+        private Button debugToggleButton;
+        private bool debugConsoleVisible = false;
+
         /// <summary>
         /// Constructor for ChatAssistant form
         /// </summary>
@@ -63,8 +68,11 @@ namespace MissionPlanner.GCSViews
                 flashScriptButton.BringToFront();
             }
             
-            // Initialize AI backend service
-            aiService = new AIBackendService("http://localhost:5000", 30);
+            // Initialize Debug Console
+            InitializeDebugConsole();
+
+            // Initialize AI backend service (90 second timeout for cold start LLM queries)
+            aiService = new AIBackendService("http://localhost:5000", 90);
             
             // Initialize command executor with Mission Planner's MAVLink connection
             commandExecutor = new DroneCommandExecutor(MainV2.comPort);
@@ -372,6 +380,129 @@ namespace MissionPlanner.GCSViews
         }
 
         /// <summary>
+        /// Initialize the debug console UI
+        /// </summary>
+        private void InitializeDebugConsole()
+        {
+            // Create debug toggle button - more visible, positioned in bottom toolbar
+            debugToggleButton = new Button();
+            debugToggleButton.Text = "🔧 Debug";
+            debugToggleButton.Size = new Size(75, 25);
+            debugToggleButton.Location = new Point(470, 5);  // Right side of bottom toolbar
+            debugToggleButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            debugToggleButton.FlatStyle = FlatStyle.Flat;
+            debugToggleButton.BackColor = Color.FromArgb(80, 80, 80);
+            debugToggleButton.ForeColor = Color.Yellow;
+            debugToggleButton.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            debugToggleButton.FlatAppearance.BorderColor = Color.Yellow;
+            debugToggleButton.FlatAppearance.BorderSize = 1;
+            debugToggleButton.Click += DebugToggleButton_Click;
+            debugToggleButton.Cursor = Cursors.Hand;
+            bottomToolbar.Controls.Add(debugToggleButton);
+            debugToggleButton.BringToFront();
+
+            // Create debug console (hidden by default) - positioned above bottomToolbar
+            debugConsole = new RichTextBox();
+            debugConsole.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            debugConsole.Height = 180;
+            debugConsole.Location = new Point(0, chatHistoryBox.Bottom - 180);
+            debugConsole.Width = this.Width;
+            debugConsole.BackColor = Color.FromArgb(15, 15, 25);
+            debugConsole.ForeColor = Color.LightGreen;
+            debugConsole.Font = new Font("Consolas", 9F);
+            debugConsole.ReadOnly = true;
+            debugConsole.BorderStyle = BorderStyle.FixedSingle;
+            debugConsole.Visible = false;
+            this.Controls.Add(debugConsole);
+            debugConsole.BringToFront();
+        }
+
+        /// <summary>
+        /// Toggle debug console visibility
+        /// </summary>
+        private void DebugToggleButton_Click(object sender, EventArgs e)
+        {
+            debugConsoleVisible = !debugConsoleVisible;
+            debugConsole.Visible = debugConsoleVisible;
+
+            // Update button appearance based on state
+            if (debugConsoleVisible)
+            {
+                debugToggleButton.BackColor = Color.FromArgb(0, 100, 0);  // Dark green when active
+                debugToggleButton.Text = "🔧 Debug ▲";
+                debugToggleButton.FlatAppearance.BorderColor = Color.LimeGreen;
+
+                // Adjust chatHistoryBox size
+                chatHistoryBox.Height = bottomToolbar.Top - 180;
+                debugConsole.Location = new Point(0, chatHistoryBox.Bottom);
+                debugConsole.Width = this.Width;
+                debugConsole.BringToFront();
+                DebugLog("=== Debug Console Enabled ===");
+                DebugLog("This console shows MAVFTP operations, upload status, and errors.");
+                DebugLog("Use 'Flash' button to see detailed upload logs.");
+            }
+            else
+            {
+                debugToggleButton.BackColor = Color.FromArgb(80, 80, 80);
+                debugToggleButton.Text = "🔧 Debug";
+                debugToggleButton.FlatAppearance.BorderColor = Color.Yellow;
+
+                chatHistoryBox.Height = bottomToolbar.Top;
+            }
+        }
+
+        /// <summary>
+        /// Log a message to the debug console with auto-color based on content
+        /// </summary>
+        private void DebugLog(string message)
+        {
+            if (debugConsole == null) return;
+
+            try
+            {
+                if (debugConsole.InvokeRequired)
+                {
+                    debugConsole.BeginInvoke(new Action(() => DebugLog(message)));
+                    return;
+                }
+
+                // Determine color based on message content
+                Color logColor = Color.LightGreen;  // Default
+                if (message.Contains("ERROR") || message.Contains("FAILED") || message.Contains("MISMATCH"))
+                    logColor = Color.Red;
+                else if (message.Contains("WARNING") || message.Contains("⚠"))
+                    logColor = Color.Orange;
+                else if (message.Contains("SUCCESS") || message.Contains("✓") || message.Contains("OK"))
+                    logColor = Color.LimeGreen;
+                else if (message.Contains("==="))
+                    logColor = Color.Cyan;
+
+                string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+                int startPos = debugConsole.TextLength;
+                debugConsole.AppendText($"[{timestamp}] {message}\n");
+                debugConsole.Select(startPos, debugConsole.TextLength - startPos);
+                debugConsole.SelectionColor = logColor;
+                debugConsole.SelectionLength = 0;
+                debugConsole.ScrollToCaret();
+            }
+            catch
+            {
+                // Ignore errors
+            }
+        }
+
+        /// <summary>
+        /// Clear the debug console
+        /// </summary>
+        private void ClearDebugLog()
+        {
+            if (debugConsole != null)
+            {
+                debugConsole.Clear();
+            }
+        }
+
+        /// <summary>
         /// Handles the form load event
         /// </summary>
         private async void ChatAssistant_Load(object sender, EventArgs e)
@@ -525,6 +656,217 @@ namespace MissionPlanner.GCSViews
         /// <summary>
         /// Handle flash script button click - uploads last saved script to flight controller
         /// </summary>
+        /// <summary>
+        /// Check if scripting is enabled (SCR_ENABLE = 1) and offer to enable it if not
+        /// </summary>
+        private async Task<bool> CheckAndEnableScripting()
+        {
+            try
+            {
+                AppendMessage("[Checking if Lua scripting is enabled...]", Color.Blue);
+
+                double scrEnable = MainV2.comPort.MAV.param["SCR_ENABLE"].Value;
+
+                if (scrEnable == 0)
+                {
+                    AppendMessage("[WARNING: SCR_ENABLE = 0, Lua scripting is DISABLED]", Color.Orange);
+
+                    var result = CustomMessageBox.Show(
+                        "Lua Scripting is DISABLED on the flight controller.\n\n" +
+                        "Current: SCR_ENABLE = 0\n" +
+                        "Required: SCR_ENABLE = 1\n\n" +
+                        "Would you like to enable scripting and reboot the FC now?\n\n" +
+                        "This process will:\n" +
+                        "1. Set SCR_ENABLE = 1\n" +
+                        "2. Wait 2 seconds for EEPROM write\n" +
+                        "3. Reboot the flight controller\n" +
+                        "4. Wait for reconnection\n" +
+                        "5. Continue with script upload",
+                        "Enable Lua Scripting?",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question
+                    );
+
+                    if (result != (int)DialogResult.Yes)
+                    {
+                        AppendMessage("[Flash cancelled - scripting not enabled]", Color.Orange);
+                        return false;
+                    }
+
+                    AppendMessage("[Enabling Lua scripting...]", Color.Blue);
+
+                    // Set SCR_ENABLE = 1
+                    bool paramSet = MainV2.comPort.setParam("SCR_ENABLE", 1);
+
+                    if (!paramSet)
+                    {
+                        AppendMessage("[Error: Failed to set SCR_ENABLE parameter]", Color.Red);
+                        CustomMessageBox.Show(
+                            "Failed to set SCR_ENABLE parameter.\n\n" +
+                            "Please set it manually:\n" +
+                            "1. Go to CONFIG > Full Parameter Tree\n" +
+                            "2. Find SCR_ENABLE\n" +
+                            "3. Set value to 1\n" +
+                            "4. Click 'Write Params'\n" +
+                            "5. Reboot the flight controller",
+                            "Parameter Set Failed",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                        return false;
+                    }
+
+                    AppendMessage("✓ SCR_ENABLE set to 1", Color.Green);
+                    DebugLog("SCR_ENABLE set to 1");
+
+                    // Also set SCR_HEAP_SIZE if it's too small (scripts won't load without enough memory)
+                    try
+                    {
+                        float currentHeap = MainV2.comPort.MAV.param.ContainsKey("SCR_HEAP_SIZE")
+                            ? (float)MainV2.comPort.MAV.param["SCR_HEAP_SIZE"]
+                            : 0;
+
+                        DebugLog($"Current SCR_HEAP_SIZE: {currentHeap}");
+
+                        if (currentHeap < 65536)
+                        {
+                            AppendMessage($"[Setting SCR_HEAP_SIZE from {currentHeap} to 131072...]", Color.Blue);
+                            DebugLog("SCR_HEAP_SIZE too small, setting to 131072");
+                            bool heapSet = MainV2.comPort.setParam("SCR_HEAP_SIZE", 131072);
+                            if (heapSet)
+                            {
+                                AppendMessage("✓ SCR_HEAP_SIZE set to 131072", Color.Green);
+                                DebugLog("SCR_HEAP_SIZE set to 131072");
+                            }
+                            else
+                            {
+                                AppendMessage("⚠ Could not set SCR_HEAP_SIZE (scripts may not load)", Color.Orange);
+                                DebugLog("WARNING: Failed to set SCR_HEAP_SIZE");
+                            }
+                        }
+                        else
+                        {
+                            AppendMessage($"✓ SCR_HEAP_SIZE is already {currentHeap} (OK)", Color.Green);
+                            DebugLog($"SCR_HEAP_SIZE already adequate: {currentHeap}");
+                        }
+                    }
+                    catch (Exception heapEx)
+                    {
+                        DebugLog($"Error checking SCR_HEAP_SIZE: {heapEx.Message}");
+                        AppendMessage("[Could not check SCR_HEAP_SIZE - continuing anyway]", Color.Gray);
+                    }
+
+                    AppendMessage("[Waiting 2 seconds for EEPROM write...]", Color.Gray);
+
+                    // IMPORTANT: Wait for parameter to be written to EEPROM
+                    await Task.Delay(2000);
+
+                    AppendMessage("[Rebooting flight controller...]", Color.Blue);
+                    DebugLog("Sending reboot command...");
+
+                    // Send reboot command
+                    if (!MainV2.comPort.doReboot(false, true))
+                    {
+                        AppendMessage("[Error: Failed to send reboot command]", Color.Red);
+                        AppendMessage("[Please reboot manually and try again]", Color.Orange);
+                        return false;
+                    }
+
+                    AppendMessage("✓ Reboot command sent", Color.Green);
+                    AppendMessage("[Waiting for flight controller to reboot and reconnect...]", Color.Gray);
+                    AppendMessage("[This may take 10-15 seconds...]", Color.Gray);
+
+                    // Wait for FC to reboot and reconnect (typical reboot takes 5-10 seconds)
+                    await Task.Delay(8000);
+
+                    // Check if still connected (with proper null checks)
+                    int retries = 0;
+                    while ((MainV2.comPort == null || MainV2.comPort.BaseStream == null || !MainV2.comPort.BaseStream.IsOpen) && retries < 15)
+                    {
+                        AppendMessage($"[Waiting for reconnection... ({retries + 1}/15)]", Color.Gray);
+                        await Task.Delay(1000);
+                        retries++;
+                    }
+
+                    // Check if reconnected (with null checks)
+                    bool reconnected = MainV2.comPort != null &&
+                                      MainV2.comPort.BaseStream != null &&
+                                      MainV2.comPort.BaseStream.IsOpen;
+
+                    if (!reconnected)
+                    {
+                        AppendMessage("[Warning: FC not reconnected yet. Please wait and try flash again.]", Color.Orange);
+                        CustomMessageBox.Show(
+                            "Flight controller has not reconnected yet.\n\n" +
+                            "Please wait for the FC to finish rebooting, then try flashing again.\n\n" +
+                            "If the FC doesn't reconnect automatically, you may need to:\n" +
+                            "1. Manually reconnect using the CONNECT button\n" +
+                            "2. Verify SCR_ENABLE = 1 in Full Parameter Tree\n" +
+                            "3. Try flashing the script again",
+                            "Reconnection Timeout",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning
+                        );
+                        return false;
+                    }
+
+                    AppendMessage("✓ Flight controller reconnected", Color.Green);
+                    AppendMessage("[Waiting for parameters to load...]", Color.Gray);
+
+                    // Wait for parameters to be fully loaded after reboot
+                    await Task.Delay(2000);
+
+                    // Verify parameters are accessible
+                    int paramRetries = 0;
+                    while ((MainV2.comPort.MAV.param == null || MainV2.comPort.MAV.param.Count == 0) && paramRetries < 10)
+                    {
+                        AppendMessage($"[Waiting for parameters... ({paramRetries + 1}/10)]", Color.Gray);
+                        await Task.Delay(1000);
+                        paramRetries++;
+                    }
+
+                    if (MainV2.comPort.MAV.param == null || MainV2.comPort.MAV.param.Count == 0)
+                    {
+                        AppendMessage("[Warning: Parameters not loaded. Please wait and try flash again.]", Color.Orange);
+                        CustomMessageBox.Show(
+                            "Parameters have not loaded yet.\n\n" +
+                            "Please wait a few more seconds for the flight controller to fully initialize, then try flashing again.",
+                            "Parameters Not Ready",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning
+                        );
+                        return false;
+                    }
+
+                    AppendMessage("✓ Parameters loaded successfully", Color.Green);
+                    AppendMessage("[Scripting is now enabled! Continuing with upload...]", Color.Green);
+                }
+                else
+                {
+                    AppendMessage("✓ SCR_ENABLE = 1 (scripting already enabled)", Color.Green);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppendMessage($"[Error checking SCR_ENABLE: {ex.Message}]", Color.Red);
+                AppendMessage("[Cannot verify scripting status. Please check parameters manually.]", Color.Orange);
+
+                // Ask user if they want to continue anyway
+                var continueResult = CustomMessageBox.Show(
+                    $"Could not verify SCR_ENABLE status:\n{ex.Message}\n\n" +
+                    "Do you want to continue with the upload anyway?\n\n" +
+                    "(Only do this if you know scripting is already enabled)",
+                    "Parameter Check Failed",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning
+                );
+
+                return continueResult == (int)DialogResult.Yes;
+            }
+        }
+
         private async void flashScriptButton_Click(object sender, EventArgs e)
         {
             try
@@ -558,75 +900,282 @@ namespace MissionPlanner.GCSViews
                     return;
                 }
 
+                // === AUTO-ENABLE SCRIPTING IF DISABLED ===
+                bool scriptingEnabled = await CheckAndEnableScripting();
+                if (!scriptingEnabled)
+                {
+                    return; // User cancelled or error occurred
+                }
+
                 // Get file info for display
                 var fileInfo = new System.IO.FileInfo(lastSavedScriptPath);
                 string fileName = System.IO.Path.GetFileName(lastSavedScriptPath);
 
-                var result = CustomMessageBox.Show(
-                    $"Upload Lua script to flight controller?\n\n" +
+                // === PARAMETER VERIFICATION ===
+                AppendMessage("[Checking scripting parameters...]", Color.Blue);
+
+                double scrEnable = 0;
+                double scrHeapSize = 0;
+                bool paramsOk = true;
+                string paramWarnings = "";
+
+                try
+                {
+                    // Verify comPort and params are valid before accessing
+                    if (MainV2.comPort == null || MainV2.comPort.MAV == null || MainV2.comPort.MAV.param == null)
+                    {
+                        throw new Exception("MAVLink connection or parameters not available");
+                    }
+
+                    // Check SCR_ENABLE
+                    if (!MainV2.comPort.MAV.param.ContainsKey("SCR_ENABLE"))
+                    {
+                        throw new Exception("SCR_ENABLE parameter not found");
+                    }
+
+                    scrEnable = MainV2.comPort.MAV.param["SCR_ENABLE"].Value;
+                    if (scrEnable != 1)
+                    {
+                        paramsOk = false;
+                        paramWarnings += $"⚠ SCR_ENABLE is {scrEnable} (should be 1)\n";
+                        AppendMessage($"[WARNING: SCR_ENABLE = {scrEnable}, scripting is DISABLED]", Color.Orange);
+                    }
+                    else
+                    {
+                        AppendMessage("✓ SCR_ENABLE = 1 (scripting enabled)", Color.Green);
+                    }
+
+                    // Check SCR_HEAP_SIZE
+                    if (MainV2.comPort.MAV.param.ContainsKey("SCR_HEAP_SIZE"))
+                    {
+                        scrHeapSize = MainV2.comPort.MAV.param["SCR_HEAP_SIZE"].Value;
+                        AppendMessage($"✓ SCR_HEAP_SIZE = {scrHeapSize} bytes", Color.Gray);
+
+                        if (scrHeapSize < 65536)
+                        {
+                            paramWarnings += $"⚠ SCR_HEAP_SIZE is {scrHeapSize} bytes (recommended >= 65536)\n";
+                            AppendMessage($"[NOTE: SCR_HEAP_SIZE = {scrHeapSize}, may be too small for complex scripts]", Color.Gray);
+                        }
+                    }
+                }
+                catch (Exception paramEx)
+                {
+                    AppendMessage($"[WARNING: Could not verify parameters: {paramEx.Message}]", Color.Orange);
+                    paramWarnings += "⚠ Could not verify scripting parameters\n";
+                }
+
+                // === LUA SYNTAX VALIDATION ===
+                AppendMessage("[Validating Lua script syntax...]", Color.Blue);
+                string syntaxWarnings = "";
+
+                try
+                {
+                    string scriptContent = System.IO.File.ReadAllText(lastSavedScriptPath);
+
+                    // Check for Python-style string formatting (common AI mistake)
+                    if (scriptContent.Contains("\"") && scriptContent.Contains("%") && scriptContent.Contains(") %"))
+                    {
+                        syntaxWarnings += "⚠ SYNTAX ERROR: Python-style % formatting detected!\n";
+                        syntaxWarnings += "  Found: '... \" % variable'\n";
+                        syntaxWarnings += "  Should be: string.format(\"...\", variable)\n\n";
+                        AppendMessage("[ERROR: Script contains Python-style % string formatting]", Color.Red);
+                        AppendMessage("[Lua uses string.format(), not % operator]", Color.Red);
+                        paramsOk = false;
+                    }
+
+                    // Check for required script structure
+                    if (!scriptContent.Contains("function update()"))
+                    {
+                        syntaxWarnings += "⚠ Script may be missing update() function\n";
+                        AppendMessage("[WARNING: Script may not have proper update() function]", Color.Orange);
+                    }
+
+                    if (!scriptContent.Contains("return update"))
+                    {
+                        syntaxWarnings += "⚠ Script may not return update() function\n";
+                        AppendMessage("[WARNING: Script may not return update() function]", Color.Orange);
+                    }
+
+                    if (string.IsNullOrEmpty(syntaxWarnings))
+                    {
+                        AppendMessage("✓ Basic Lua syntax checks passed", Color.Green);
+                    }
+                }
+                catch (Exception syntaxEx)
+                {
+                    AppendMessage($"[WARNING: Could not validate syntax: {syntaxEx.Message}]", Color.Orange);
+                }
+
+                // Show errors if syntax is bad
+                if (!string.IsNullOrEmpty(syntaxWarnings))
+                {
+                    var fixResult = CustomMessageBox.Show(
+                        "Lua Syntax Errors Detected!\n\n" + syntaxWarnings +
+                        "\nThis script will likely FAIL to load on the flight controller.\n\n" +
+                        "Do you want to:\n" +
+                        "• Cancel and regenerate the script (Recommended)\n" +
+                        "• Upload anyway (Advanced users only)",
+                        "Script Syntax Error",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning
+                    );
+
+                    if (fixResult != (int)DialogResult.Yes)
+                    {
+                        AppendMessage("[Upload cancelled - please regenerate the script]", Color.Orange);
+                        AppendMessage("[Tip: Ask AI to regenerate using correct Lua syntax]", Color.Gray);
+                        return;
+                    }
+                }
+
+                // Step 1: Ask if user wants to flash the script
+                string confirmMessage = $"Flash Lua script to flight controller?\n\n" +
                     $"File: {fileName}\n" +
                     $"Size: {fileInfo.Length} bytes\n" +
                     $"Description: {lastScriptDescription}\n\n" +
-                    $"Target: /APM/scripts/{fileName}\n\n" +
-                    $"Make sure the flight controller has:\n" +
+                    $"Target: /APM/scripts/{fileName}\n\n";
+
+                if (!string.IsNullOrEmpty(paramWarnings))
+                {
+                    confirmMessage += "⚠ PARAMETER WARNINGS:\n" + paramWarnings + "\n";
+                }
+
+                confirmMessage += $"Requirements:\n" +
                     $"• SD card inserted and formatted\n" +
-                    $"• SCR_ENABLE parameter set to 1\n" +
-                    $"• Enough free space for the script",
+                    $"• SCR_ENABLE = 1 (currently {scrEnable})\n" +
+                    $"• Enough free space for the script\n\n" +
+                    $"Do you want to proceed with flashing?";
+
+                var result = CustomMessageBox.Show(
+                    confirmMessage,
                     "Flash Script to FC",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question
+                    CustomMessageBox.MessageBoxButtons.YesNo,
+                    paramsOk ? CustomMessageBox.MessageBoxIcon.Question : CustomMessageBox.MessageBoxIcon.Warning
                 );
 
-                if (result != (int)DialogResult.Yes)
+                if (result != CustomMessageBox.DialogResult.Yes)
                 {
                     AppendMessage("[Flash cancelled by user]", Color.Gray);
                     return;
                 }
 
-                AppendMessage($"[Uploading {fileName} ({fileInfo.Length} bytes) to flight controller...]", Color.Blue);
+                // Step 2: Ask if user wants to clear old scripts first
+                string clearMessage = "How would you like to handle existing scripts?\n\n" +
+                    "CLEAR & FLASH (Recommended):\n" +
+                    "• Delete ALL existing .lua scripts from /APM/scripts/\n" +
+                    "• Upload this new script\n" +
+                    "• Only this script will run after reboot\n" +
+                    "• Clean state, no conflicts\n\n" +
+                    "FLASH ONLY (Advanced):\n" +
+                    "• Keep all existing scripts\n" +
+                    "• Add this new script\n" +
+                    "• ALL scripts will run simultaneously after reboot\n" +
+                    "• Use only if you want multiple scripts running together\n\n" +
+                    "Click YES to Clear & Flash (recommended)\n" +
+                    "Click NO to Flash Only (keep existing scripts)";
+
+                var clearResult = CustomMessageBox.Show(
+                    clearMessage,
+                    "Script Management",
+                    CustomMessageBox.MessageBoxButtons.YesNo,
+                    CustomMessageBox.MessageBoxIcon.Question,
+                    "Clear & Flash",
+                    "Flash Only"
+                );
+
+                bool clearOldScripts = (clearResult == CustomMessageBox.DialogResult.Yes);
+
+                if (clearOldScripts)
+                {
+                    AppendMessage("[User selected: Clear all scripts and flash new one]", Color.Blue);
+                }
+                else
+                {
+                    AppendMessage("[User selected: Flash without clearing existing scripts]", Color.Blue);
+                    AppendMessage("[NOTE: Multiple scripts will run simultaneously after reboot]", Color.Orange);
+                }
+
+                AppendMessage($"[Preparing to flash {fileName} ({fileInfo.Length} bytes)...]", Color.Blue);
                 AppendMessage($"[Local path: {lastSavedScriptPath}]", Color.Gray);
                 AppendMessage("[Creating /APM/scripts/ directory on SD card if needed...]", Color.Gray);
 
+                if (clearOldScripts)
+                {
+                    AppendMessage("[Will delete all old scripts before upload]", Color.Orange);
+                }
+                else
+                {
+                    AppendMessage("[Will keep existing scripts]", Color.Gray);
+                }
+
+                AppendMessage("[Uploading script...]", Color.Blue);
+
                 string targetDir = "/APM/scripts";
                 string targetPath = targetDir + "/" + fileName;
+
+                // Capture flag for use in Task
+                bool shouldClearOldScripts = clearOldScripts;
+
+                // Log to debug console
+                DebugLog("=== STARTING UPLOAD ===");
+                DebugLog($"Local file: {lastSavedScriptPath}");
+                DebugLog($"Target path: {targetPath}");
+                DebugLog($"Clear old scripts: {shouldClearOldScripts}");
 
                 string uploadResult = await Task.Run(() =>
                 {
                     try
                     {
                         // Verify file exists one more time before reading
+                        DebugLog("Checking local file exists...");
                         if (!System.IO.File.Exists(lastSavedScriptPath))
                         {
+                            DebugLog("ERROR: Local file not found!");
                             throw new Exception($"File disappeared: {lastSavedScriptPath}");
                         }
+                        DebugLog("Local file exists OK");
 
                         // Read file bytes
+                        DebugLog("Reading file bytes...");
                         var fileBytes = System.IO.File.ReadAllBytes(lastSavedScriptPath);
+                        DebugLog($"Read {fileBytes.Length} bytes");
 
                         if (fileBytes == null || fileBytes.Length == 0)
                         {
+                            DebugLog("ERROR: File is empty!");
                             throw new Exception("File is empty or could not be read");
                         }
 
                         // Create MAVFTP instance
+                        DebugLog("Creating MAVFTP instance...");
                         var ftp = new MAVFtp(MainV2.comPort, MainV2.comPort.MAV.sysid, MainV2.comPort.MAV.compid);
+                        DebugLog($"MAVFTP: sysid={MainV2.comPort.MAV.sysid}, compid={MainV2.comPort.MAV.compid}");
+
+                        // Create a CancellationTokenSource for all FTP operations (like MavFTPUI does)
+                        var ftpCancel = new System.Threading.CancellationTokenSource();
 
                         // Try to list root directory first to verify MAVFTP is working
                         string debugInfo = "";
                         try
                         {
-                            var rootList = ftp.kCmdListDirectory("/", null);
+                            DebugLog("Listing root directory...");
+                            var rootList = ftp.kCmdListDirectory("/", ftpCancel);
+                            DebugLog($"Root dir: Found {rootList.Count} items");
                             debugInfo += $"✓ MAVFTP working - Found {rootList.Count} items in root\n";
 
                             // Check if APM directory exists
                             bool apmExists = rootList.Any(f => f.Name == "APM");
+                            DebugLog($"/APM exists: {apmExists}");
                             if (apmExists)
                             {
                                 debugInfo += "✓ /APM directory exists\n";
 
                                 // Check if scripts directory exists
-                                var apmList = ftp.kCmdListDirectory("/APM", null);
-                                if (apmList.Any(f => f.Name == "scripts"))
+                                DebugLog("Listing /APM directory...");
+                                var apmList = ftp.kCmdListDirectory("/APM", ftpCancel);
+                                bool scriptsExists = apmList.Any(f => f.Name == "scripts");
+                                DebugLog($"/APM/scripts exists: {scriptsExists}");
+                                if (scriptsExists)
                                 {
                                     debugInfo += "✓ /APM/scripts directory already exists\n";
                                 }
@@ -642,6 +1191,7 @@ namespace MissionPlanner.GCSViews
                         }
                         catch (Exception listEx)
                         {
+                            DebugLog($"ERROR listing directories: {listEx.Message}");
                             debugInfo += $"✗ MAVFTP directory listing failed: {listEx.Message}\n";
                             return "ERROR: Cannot list directories via MAVFTP. This means:\n" +
                                    "• SD card might not be inserted or not formatted\n" +
@@ -652,7 +1202,7 @@ namespace MissionPlanner.GCSViews
                         // Create /APM directory if it doesn't exist (needed for SITL)
                         try
                         {
-                            bool apmCreated = ftp.kCmdCreateDirectory("/APM", null);
+                            bool apmCreated = ftp.kCmdCreateDirectory("/APM", ftpCancel);
                             if (apmCreated)
                             {
                                 debugInfo += "✓ Created /APM directory\n";
@@ -672,9 +1222,11 @@ namespace MissionPlanner.GCSViews
                         }
 
                         // Now create /APM/scripts directory
+                        DebugLog("Creating /APM/scripts directory...");
                         try
                         {
-                            bool scriptsCreated = ftp.kCmdCreateDirectory(targetDir, null);
+                            bool scriptsCreated = ftp.kCmdCreateDirectory(targetDir, ftpCancel);
+                            DebugLog($"/APM/scripts created: {scriptsCreated}");
                             if (scriptsCreated)
                             {
                                 debugInfo += $"✓ Created {targetDir} directory\n";
@@ -682,6 +1234,7 @@ namespace MissionPlanner.GCSViews
                         }
                         catch (Exception dirEx)
                         {
+                            DebugLog($"/APM/scripts create exception: {dirEx.Message}");
                             // Directory might already exist, that's OK
                             if (dirEx.Message.Contains("EEXIST"))
                             {
@@ -693,9 +1246,164 @@ namespace MissionPlanner.GCSViews
                             }
                         }
 
-                        // Upload file via MAVFTP
-                        debugInfo += $"Uploading to {targetPath}...\n";
-                        ftp.UploadFile(targetPath, new System.IO.MemoryStream(fileBytes), null);
+                        // Delete all old Lua scripts from /APM/scripts/ (if user requested)
+                        if (shouldClearOldScripts)
+                        {
+                            DebugLog("=== DELETING OLD SCRIPTS ===");
+                            try
+                            {
+                                debugInfo += "Checking for old scripts to delete...\n";
+                                DebugLog("Listing /APM/scripts for deletion...");
+                                var scriptsList = ftp.kCmdListDirectory(targetDir, ftpCancel);
+
+                                if (scriptsList != null && scriptsList.Count > 0)
+                                {
+                                    DebugLog($"Found {scriptsList.Count} items in scripts dir");
+                                    int deletedCount = 0;
+                                    foreach (var file in scriptsList)
+                                    {
+                                        DebugLog($"  Item: {file.Name} (size: {file.Size})");
+                                        if (file.Name.EndsWith(".lua", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            try
+                                            {
+                                                string oldScriptPath = targetDir + "/" + file.Name;
+                                                DebugLog($"  Deleting: {oldScriptPath}");
+                                                ftp.kCmdRemoveFile(oldScriptPath, ftpCancel);
+                                                DebugLog($"  Deleted: {file.Name}");
+                                                debugInfo += $"✓ Deleted old script: {file.Name}\n";
+                                                deletedCount++;
+                                            }
+                                            catch (Exception delEx)
+                                            {
+                                                DebugLog($"  ERROR deleting {file.Name}: {delEx.Message}");
+                                                debugInfo += $"⚠ Could not delete {file.Name}: {delEx.Message}\n";
+                                            }
+                                        }
+                                    }
+
+                                    DebugLog($"Deleted {deletedCount} old scripts");
+                                    if (deletedCount > 0)
+                                    {
+                                        debugInfo += $"✓ Deleted {deletedCount} old script(s)\n";
+                                    }
+                                    else
+                                    {
+                                        debugInfo += "✓ No old scripts found\n";
+                                    }
+                                }
+                                else
+                                {
+                                    DebugLog("Scripts directory is empty");
+                                    debugInfo += "✓ Scripts directory is empty\n";
+                                }
+                            }
+                            catch (Exception cleanEx)
+                            {
+                                DebugLog($"ERROR cleaning scripts: {cleanEx.Message}");
+                                // Non-fatal - continue with upload even if cleanup fails
+                                debugInfo += $"⚠ Could not clean old scripts: {cleanEx.Message}\n";
+                            }
+                        }
+                        else
+                        {
+                            DebugLog("Keeping existing scripts (user choice)");
+                            debugInfo += "Keeping existing scripts (user choice)\n";
+                        }
+
+                        // Upload new file via MAVFTP
+                        DebugLog("=== UPLOADING NEW FILE ===");
+                        DebugLog($"Target path: {targetPath}");
+                        DebugLog($"File size: {fileBytes.Length} bytes");
+                        DebugLog($"Local file: {lastSavedScriptPath}");
+                        debugInfo += $"Target path: {targetPath}\n";
+                        debugInfo += $"File size: {fileBytes.Length} bytes\n";
+
+                        try
+                        {
+                            // Add progress handler for diagnostics
+                            ftp.Progress += (msg, pct) => {
+                                DebugLog($"FTP Progress: {msg} - {pct}%");
+                            };
+
+                            DebugLog("Calling ftp.UploadFile() with file path...");
+                            debugInfo += "Starting MAVFTP upload...\n";
+
+                            // Use file-path based UploadFile (like MavFTPUI does) instead of Stream-based
+                            // This is more reliable as it handles the file reading internally
+                            ftp.UploadFile(targetPath, lastSavedScriptPath, ftpCancel);
+
+                            DebugLog("UploadFile() returned without exception");
+                            debugInfo += "Upload command completed\n";
+
+                            // Verify with CRC32 (like MavFTPUI does)
+                            DebugLog("=== VERIFYING WITH CRC32 ===");
+                            debugInfo += "Verifying upload with CRC32...\n";
+                            uint remoteCrc = 0;
+                            ftp.kCmdCalcFileCRC32(targetPath, ref remoteCrc, ftpCancel);
+                            var localCrc = MAVFtp.crc_crc32(0, fileBytes);
+                            DebugLog($"Local CRC32: {localCrc:X8}");
+                            DebugLog($"Remote CRC32: {remoteCrc:X8}");
+                            debugInfo += $"Local CRC32: {localCrc:X8}\n";
+                            debugInfo += $"Remote CRC32: {remoteCrc:X8}\n";
+
+                            if (localCrc != remoteCrc)
+                            {
+                                DebugLog("CRC32 MISMATCH! Upload failed.");
+                                throw new Exception($"CRC32 mismatch! Local: {localCrc:X8}, Remote: {remoteCrc:X8}. Upload may have failed.");
+                            }
+
+                            DebugLog("CRC32 match - upload verified!");
+                            debugInfo += $"✓ CRC32 verified - upload successful!\n";
+
+                            // Also verify by listing directory
+                            DebugLog("=== VERIFYING BY DIRECTORY LISTING ===");
+                            DebugLog($"Listing {targetDir}...");
+                            debugInfo += $"Verifying in {targetDir}...\n";
+                            var verifyList = ftp.kCmdListDirectory(targetDir, ftpCancel);
+                            bool uploadVerified = false;
+
+                            if (verifyList != null)
+                            {
+                                DebugLog($"Found {verifyList.Count} files:");
+                                debugInfo += $"Found {verifyList.Count} files in {targetDir}:\n";
+                                foreach (var f in verifyList)
+                                {
+                                    DebugLog($"  [{f.Name}] size={f.Size}");
+                                    debugInfo += $"  - {f.Name} ({f.Size} bytes)\n";
+                                }
+
+                                DebugLog($"Looking for: {fileName}");
+                                var uploadedFile = verifyList.FirstOrDefault(f => f.Name == fileName);
+                                if (uploadedFile != null)
+                                {
+                                    uploadVerified = true;
+                                    DebugLog($"SUCCESS! Found {fileName} ({uploadedFile.Size} bytes)");
+                                    debugInfo += $"✓ Upload verified: {fileName} ({uploadedFile.Size} bytes)\n";
+                                }
+                                else
+                                {
+                                    DebugLog($"WARNING: {fileName} NOT FOUND in directory listing (but CRC passed)");
+                                    debugInfo += $"⚠ File {fileName} not in listing (CRC passed anyway)\n";
+                                    // Don't fail if CRC passed - directory listing can be cached
+                                    uploadVerified = true;
+                                }
+                            }
+                            else
+                            {
+                                debugInfo += "⚠ Directory listing returned null (CRC passed anyway)\n";
+                                uploadVerified = true; // Trust CRC if it passed
+                            }
+                        }
+                        catch (Exception uploadEx)
+                        {
+                            debugInfo += $"Exception: {uploadEx.GetType().Name}: {uploadEx.Message}\n";
+                            if (uploadEx.InnerException != null)
+                            {
+                                debugInfo += $"Inner: {uploadEx.InnerException.Message}\n";
+                            }
+                            throw new Exception($"{uploadEx.Message}\n\nDebug info:\n{debugInfo}");
+                        }
 
                         return "SUCCESS\n" + debugInfo;
                     }
@@ -710,36 +1418,142 @@ namespace MissionPlanner.GCSViews
                 {
                     AppendMessage($"✓ Script uploaded successfully to {targetPath}", Color.Green);
                     AppendMessage("[Debug info:\n" + uploadResult.Replace("SUCCESS\n", "") + "]", Color.Gray);
-                    AppendMessage("[The flight controller needs to be rebooted to load the script]", Color.FromArgb(100, 149, 237));
+
+                    if (shouldClearOldScripts)
+                    {
+                        AppendMessage("[⚠ IMPORTANT: Old scripts deleted from SD card but still running in memory!]", Color.Orange);
+                        AppendMessage("[⚠ You MUST reboot to stop old scripts and load only the new script]", Color.Orange);
+                    }
+                    else
+                    {
+                        AppendMessage("[The flight controller needs to be rebooted to load the script]", Color.FromArgb(100, 149, 237));
+                    }
 
                     // Show success message and offer to reboot
+                    string rebootMessage;
+                    if (shouldClearOldScripts)
+                    {
+                        rebootMessage = $"✓ Lua script uploaded successfully!\n\n" +
+                            $"File: {fileName}\n" +
+                            $"Target: {targetPath}\n\n" +
+                            $"⚠ IMPORTANT - REBOOT REQUIRED:\n" +
+                            $"Old scripts were deleted from SD card but are STILL RUNNING in memory.\n" +
+                            $"You MUST reboot now to:\n" +
+                            $"  • Stop all old scripts from running\n" +
+                            $"  • Load only the new script from SD card\n\n" +
+                            $"Without reboot, old scripts will continue running alongside the new one!\n\n" +
+                            $"Reboot the flight controller now?";
+                    }
+                    else
+                    {
+                        rebootMessage = $"✓ Lua script uploaded successfully!\n\n" +
+                            $"File: {fileName}\n" +
+                            $"Target: {targetPath}\n\n" +
+                            $"The flight controller needs to reboot to load the script.\n" +
+                            $"After reboot, watch the Messages tab for:\n" +
+                            $"  \"Scripting: loaded X scripts\"\n\n" +
+                            $"Reboot the flight controller now?";
+                    }
+
                     var rebootResult = CustomMessageBox.Show(
-                        $"✓ Lua script uploaded successfully!\n\n" +
-                        $"File: {fileName}\n" +
-                        $"Target: {targetPath}\n\n" +
-                        $"The flight controller needs to reboot to load the script.\n" +
-                        $"After reboot, watch the Messages tab for:\n" +
-                        $"  \"Scripting: loaded X scripts\"\n\n" +
-                        $"Reboot the flight controller now?",
-                        "Script Upload Successful",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Information
+                        rebootMessage,
+                        shouldClearOldScripts ? "⚠ REBOOT REQUIRED" : "Script Upload Successful",
+                        CustomMessageBox.MessageBoxButtons.YesNo,
+                        shouldClearOldScripts ? CustomMessageBox.MessageBoxIcon.Warning : CustomMessageBox.MessageBoxIcon.Information
                     );
 
-                    if (rebootResult == (int)DialogResult.Yes)
+                    if (rebootResult == CustomMessageBox.DialogResult.Yes)
                     {
+                        AppendMessage("[Preparing to reboot...]", Color.Blue);
+
+                        // Small delay to ensure any pending operations complete
+                        await Task.Delay(500);
+
                         AppendMessage("[Rebooting flight controller...]", Color.Blue);
 
                         // Send reboot command (false = normal reboot, true = current vehicle only)
                         if (MainV2.comPort.doReboot(false, true))
                         {
                             AppendMessage("✓ Reboot command sent successfully", Color.Green);
-                            AppendMessage("[Watch the Messages tab for 'Scripting: loaded X scripts' message]", Color.FromArgb(100, 149, 237));
+                            AppendMessage("[Flight controller is rebooting...]", Color.Gray);
+                            AppendMessage("[Waiting for reconnection to verify script loading...]", Color.Blue);
+                            DebugLog("Waiting for FC to reconnect after final reboot...");
+
+                            // Wait for reconnection after reboot (to verify script loading)
+                            bool reconnected = false;
+                            for (int i = 0; i < 20; i++)
+                            {
+                                await Task.Delay(1000);
+                                AppendMessage($"[Reconnecting... ({i + 1}/20)]", Color.Gray);
+                                DebugLog($"Reconnection attempt {i + 1}/20");
+
+                                if (MainV2.comPort.BaseStream != null && MainV2.comPort.BaseStream.IsOpen)
+                                {
+                                    reconnected = true;
+                                    break;
+                                }
+                            }
+
+                            if (reconnected)
+                            {
+                                AppendMessage("✓ Flight controller reconnected", Color.Green);
+                                DebugLog("FC reconnected - checking scripting parameters");
+
+                                // Wait for parameters to load
+                                await Task.Delay(2000);
+
+                                // Verify scripting parameters after reboot
+                                try
+                                {
+                                    float verifyScrEnable = (float)MainV2.comPort.MAV.param["SCR_ENABLE"];
+                                    float verifyScrHeap = MainV2.comPort.MAV.param.ContainsKey("SCR_HEAP_SIZE")
+                                        ? (float)MainV2.comPort.MAV.param["SCR_HEAP_SIZE"]
+                                        : 0;
+
+                                    DebugLog($"SCR_ENABLE = {verifyScrEnable}");
+                                    DebugLog($"SCR_HEAP_SIZE = {verifyScrHeap}");
+
+                                    AppendMessage($"[Scripting parameters: SCR_ENABLE={verifyScrEnable}, SCR_HEAP_SIZE={verifyScrHeap}]", Color.Gray);
+
+                                    if (verifyScrEnable != 1)
+                                    {
+                                        AppendMessage("⚠ WARNING: SCR_ENABLE is NOT 1! Scripting is disabled.", Color.Red);
+                                        AppendMessage("[Scripts will NOT load. Please enable SCR_ENABLE manually.]", Color.Red);
+                                        DebugLog("ERROR: SCR_ENABLE != 1 after reboot!");
+                                    }
+                                    else if (verifyScrHeap < 65536)
+                                    {
+                                        AppendMessage($"⚠ WARNING: SCR_HEAP_SIZE={verifyScrHeap} is too small!", Color.Orange);
+                                        AppendMessage("[Recommended: SCR_HEAP_SIZE >= 65536. Scripts may fail to load.]", Color.Orange);
+                                        DebugLog($"WARNING: SCR_HEAP_SIZE too small: {verifyScrHeap}");
+                                    }
+                                    else
+                                    {
+                                        AppendMessage("✓ Scripting is enabled and configured correctly", Color.Green);
+                                        AppendMessage("[Watch the Messages tab for 'Scripting: loaded X scripts']", Color.FromArgb(100, 149, 237));
+                                        DebugLog("Scripting parameters OK");
+                                    }
+                                }
+                                catch (Exception verifyEx)
+                                {
+                                    AppendMessage($"[Could not verify parameters: {verifyEx.Message}]", Color.Orange);
+                                    DebugLog($"Parameter check error: {verifyEx.Message}");
+                                }
+
+                                AppendMessage("[Check Messages tab for script loading status]", Color.FromArgb(100, 149, 237));
+                            }
+                            else
+                            {
+                                AppendMessage("⚠ Flight controller did not reconnect in time", Color.Orange);
+                                AppendMessage("[Please reconnect manually and check Messages tab for script status]", Color.Orange);
+                                DebugLog("FC did not reconnect in 20 seconds");
+                            }
                         }
                         else
                         {
                             AppendMessage("✗ Failed to send reboot command", Color.Red);
                             AppendMessage("[Please reboot manually via CONFIG > Full Parameter Tree > Reboot]", Color.FromArgb(255, 165, 0));
+                            DebugLog("Failed to send reboot command");
                         }
                     }
                     else

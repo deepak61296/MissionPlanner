@@ -12,7 +12,7 @@ namespace MissionPlanner
     /// </summary>
     public class AIBackendService
     {
-        private static readonly HttpClient httpClient = new HttpClient();
+        private readonly HttpClient httpClient;
         private readonly string backendUrl;
         private readonly int timeoutSeconds;
 
@@ -20,11 +20,14 @@ namespace MissionPlanner
         /// Initialize AI Backend Service
         /// </summary>
         /// <param name="url">Backend URL (default: http://localhost:5000)</param>
-        /// <param name="timeout">Timeout in seconds (default: 30)</param>
-        public AIBackendService(string url = "http://localhost:5000", int timeout = 30)
+        /// <param name="timeout">Timeout in seconds (default: 60)</param>
+        public AIBackendService(string url = "http://localhost:5000", int timeout = 60)
         {
             backendUrl = url.TrimEnd('/');
             timeoutSeconds = timeout;
+
+            // Create new HttpClient instance with proper timeout
+            httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
         }
 
