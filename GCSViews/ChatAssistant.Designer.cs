@@ -37,6 +37,8 @@ namespace MissionPlanner.GCSViews
             this.modeComboBox = new System.Windows.Forms.ComboBox();
             this.modelLabel = new System.Windows.Forms.Label();
             this.modelComboBox = new System.Windows.Forms.ComboBox();
+            this.debugToggleButton = new System.Windows.Forms.Button();
+            this.debugSplitter = new System.Windows.Forms.Splitter();
             this.cancelButton = new System.Windows.Forms.Button();
             this.flashScriptButton = new System.Windows.Forms.Button();
             this.bottomToolbar.SuspendLayout();
@@ -141,6 +143,34 @@ namespace MissionPlanner.GCSViews
             this.modelComboBox.Size = new System.Drawing.Size(150, 23);
             this.modelComboBox.TabIndex = 5;
             //
+            // debugToggleButton - floating button between debug console and toolbar (RIGHT side)
+            //
+            this.debugToggleButton.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.debugToggleButton.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(60)))), ((int)(((byte)(60)))), ((int)(((byte)(60)))));
+            this.debugToggleButton.FlatAppearance.BorderColor = System.Drawing.Color.Cyan;
+            this.debugToggleButton.FlatAppearance.BorderSize = 2;
+            this.debugToggleButton.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.debugToggleButton.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.debugToggleButton.ForeColor = System.Drawing.Color.Cyan;
+            this.debugToggleButton.Location = new System.Drawing.Point(640, 455);
+            this.debugToggleButton.Name = "debugToggleButton";
+            this.debugToggleButton.Size = new System.Drawing.Size(150, 30);
+            this.debugToggleButton.TabIndex = 9;
+            this.debugToggleButton.Text = "▼ Debug Console";
+            this.debugToggleButton.UseVisualStyleBackColor = false;
+            this.debugToggleButton.Cursor = System.Windows.Forms.Cursors.Hand;
+            //
+            // debugSplitter - horizontal splitter to resize debug console
+            //
+            this.debugSplitter.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.debugSplitter.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(80)))), ((int)(((byte)(80)))), ((int)(((byte)(80)))));
+            this.debugSplitter.Location = new System.Drawing.Point(0, 487);
+            this.debugSplitter.Name = "debugSplitter";
+            this.debugSplitter.Size = new System.Drawing.Size(800, 3);
+            this.debugSplitter.TabIndex = 10;
+            this.debugSplitter.TabStop = false;
+            this.debugSplitter.Visible = false;
+            //
             // inputTextBox - spans from left, leaves room for Flash and Send buttons
             //
             this.inputTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
@@ -211,6 +241,8 @@ namespace MissionPlanner.GCSViews
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
+            this.Controls.Add(this.debugToggleButton);
+            this.Controls.Add(this.debugSplitter);
             this.Controls.Add(this.bottomToolbar);
             this.Controls.Add(this.chatHistoryBox);
             this.Name = "ChatAssistant";
@@ -232,6 +264,8 @@ namespace MissionPlanner.GCSViews
         private System.Windows.Forms.ComboBox modeComboBox;
         private System.Windows.Forms.Label modelLabel;
         private System.Windows.Forms.ComboBox modelComboBox;
+        private System.Windows.Forms.Button debugToggleButton;
+        private System.Windows.Forms.Splitter debugSplitter;
         private System.Windows.Forms.Button connectionButton;
         private System.Windows.Forms.Button cancelButton;
         private System.Windows.Forms.Button flashScriptButton;

@@ -26,7 +26,7 @@ namespace MissionPlanner.GCSViews
 
         // Debug console components
         private RichTextBox debugConsole;
-        private Button debugToggleButton;
+        // debugToggleButton is declared in Designer.cs
         private bool debugConsoleVisible = false;
 
         /// <summary>
@@ -362,26 +362,14 @@ namespace MissionPlanner.GCSViews
         /// Initialize the debug console UI
         /// </summary>
         private int debugConsoleHeight = 150;
+        private const int BUTTON_RESERVED_AREA = 40; // Reserved space for debug button above toolbar
         private Panel debugPanel;
         private Label debugLabel;
 
         private void InitializeDebugConsole()
         {
-            // Create debug toggle button - in bottom row after Model dropdown
-            debugToggleButton = new Button();
-            debugToggleButton.Text = "Debug";
-            debugToggleButton.Size = new Size(60, 23);
-            debugToggleButton.Location = new Point(385, 79);  // After modelComboBox (225+150=375, +10 gap)
-            debugToggleButton.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            debugToggleButton.FlatStyle = FlatStyle.Flat;
-            debugToggleButton.BackColor = Color.FromArgb(50, 50, 50);
-            debugToggleButton.ForeColor = Color.LightGray;
-            debugToggleButton.Font = new Font("Segoe UI", 8F);
-            debugToggleButton.FlatAppearance.BorderColor = Color.Gray;
-            debugToggleButton.FlatAppearance.BorderSize = 1;
+            // Wire up click event for debug toggle button (already created in Designer)
             debugToggleButton.Click += DebugToggleButton_Click;
-            debugToggleButton.Cursor = Cursors.Hand;
-            bottomToolbar.Controls.Add(debugToggleButton);
 
             // Create debug panel container with header
             debugPanel = new Panel();
@@ -429,35 +417,50 @@ namespace MissionPlanner.GCSViews
             if (debugConsoleVisible)
             {
                 // Update button appearance - active state (green)
-                debugToggleButton.BackColor = Color.FromArgb(0, 80, 0);
-                debugToggleButton.Text = "Debug ▲";
+                debugToggleButton.BackColor = Color.FromArgb(0, 100, 0);
+                debugToggleButton.Text = "▲ Debug Console";
                 debugToggleButton.ForeColor = Color.LimeGreen;
                 debugToggleButton.FlatAppearance.BorderColor = Color.LimeGreen;
 
-                // Position debug panel between chat and bottomToolbar
-                int panelTop = bottomToolbar.Top - debugConsoleHeight;
+                // Calculate positions - NEVER cover the button area
+                // Debug panel must end ABOVE the reserved button area
+                int maxDebugBottom = bottomToolbar.Top - BUTTON_RESERVED_AREA;
+                int panelTop = maxDebugBottom - debugConsoleHeight;
+
+                // If panel would go too high, adjust
+                if (panelTop < 0) panelTop = 0;
+
+                int actualPanelHeight = maxDebugBottom - panelTop;
+
                 debugPanel.Location = new Point(0, panelTop);
-                debugPanel.Size = new Size(this.Width, debugConsoleHeight);
+                debugPanel.Size = new Size(this.Width, actualPanelHeight);
 
                 // Shrink chat history to make room for debug panel
                 chatHistoryBox.Height = panelTop;
 
-                // Show debug panel and bring to front
+                // Show debug panel, splitter, and bring to front
                 debugPanel.Visible = true;
+                debugSplitter.Visible = true;
+                debugSplitter.Location = new Point(0, panelTop - 3);
                 debugPanel.BringToFront();
+                debugSplitter.BringToFront();
+
+                // Button should stay visible - bring it to front
+                debugToggleButton.BringToFront();
 
                 DebugLog("=== Debug Console Ready ===");
             }
             else
             {
                 // Update button appearance - inactive state (gray)
-                debugToggleButton.BackColor = Color.FromArgb(50, 50, 50);
-                debugToggleButton.Text = "Debug";
-                debugToggleButton.ForeColor = Color.LightGray;
-                debugToggleButton.FlatAppearance.BorderColor = Color.Gray;
+                debugToggleButton.BackColor = Color.FromArgb(60, 60, 60);
+                debugToggleButton.Text = "▼ Debug Console";
+                debugToggleButton.ForeColor = Color.Cyan;
+                debugToggleButton.FlatAppearance.BorderColor = Color.Cyan;
 
-                // Hide debug panel
+                // Hide debug panel and splitter
                 debugPanel.Visible = false;
+                debugSplitter.Visible = false;
 
                 // Restore chat height to fill space above bottomToolbar
                 chatHistoryBox.Height = bottomToolbar.Top;
@@ -544,10 +547,19 @@ namespace MissionPlanner.GCSViews
             // Update chat height based on debug panel visibility
             if (debugConsoleVisible && debugPanel != null)
             {
-                int panelTop = bottomToolbar.Top - debugConsoleHeight;
+                // Respect the reserved button area - debug panel must stay ABOVE it
+                int maxDebugBottom = bottomToolbar.Top - BUTTON_RESERVED_AREA;
+                int panelTop = maxDebugBottom - debugConsoleHeight;
+                if (panelTop < 0) panelTop = 0;
+
+                int actualPanelHeight = maxDebugBottom - panelTop;
+
                 debugPanel.Location = new Point(0, panelTop);
-                debugPanel.Size = new Size(this.Width, debugConsoleHeight);
+                debugPanel.Size = new Size(this.Width, actualPanelHeight);
                 chatHistoryBox.Height = panelTop;
+
+                // Keep button visible
+                debugToggleButton.BringToFront();
             }
             else
             {
