@@ -708,7 +708,7 @@ namespace MissionPlanner.GCSViews
             string currentUrl = Settings.Instance.GetString("ai_backend_url", "http://localhost:5000");
             string newUrl = currentUrl;
 
-            var result = Controls.InputBox.Show("Configure AI Backend", "Enter backend URL:", ref newUrl);
+            var result = MissionPlanner.Controls.InputBox.Show("Configure AI Backend", "Enter backend URL:", ref newUrl);
 
             if (result == DialogResult.OK && !string.IsNullOrEmpty(newUrl) && newUrl != currentUrl)
             {
