@@ -50,8 +50,11 @@ namespace MissionPlanner.GCSViews
             // Initialize Debug Console
             InitializeDebugConsole();
 
+            // Get backend URL from settings (default: http://localhost:5000)
+            string backendUrl = Settings.Instance.GetString("ai_backend_url", "http://localhost:5000");
+
             // Initialize AI backend service (90 second timeout for cold start LLM queries)
-            aiService = new AIBackendService("http://localhost:5000", 90);
+            aiService = new AIBackendService(backendUrl, 90);
             
             // Initialize command executor with Mission Planner's MAVLink connection
             commandExecutor = new DroneCommandExecutor(MainV2.comPort);
@@ -651,11 +654,11 @@ namespace MissionPlanner.GCSViews
             {
                 // Try to connect
                 AppendMessage("[System: Connecting to AI Backend...]", Color.Gray);
-                
+
                 try
                 {
                     bool isHealthy = await aiService.CheckHealthAsync();
-                    
+
                     if (isHealthy)
                     {
                         LoadAvailableModels();
@@ -672,6 +675,52 @@ namespace MissionPlanner.GCSViews
                     UpdateConnectionStatus(false);
                     AppendMessage("[System: Could not connect to AI Backend]", Color.Red);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Handle right-click on connection button to configure backend URL
+        /// </summary>
+        private void connectionButton_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                // Show context menu for backend configuration
+                var contextMenu = new ContextMenuStrip();
+
+                var configureItem = new ToolStripMenuItem("Configure Backend URL...");
+                configureItem.Click += (s, args) => ConfigureBackendUrl();
+                contextMenu.Items.Add(configureItem);
+
+                var currentUrlItem = new ToolStripMenuItem($"Current: {Settings.Instance.GetString("ai_backend_url", "http://localhost:5000")}");
+                currentUrlItem.Enabled = false;
+                contextMenu.Items.Add(currentUrlItem);
+
+                contextMenu.Show(connectionButton, e.Location);
+            }
+        }
+
+        /// <summary>
+        /// Show dialog to configure backend URL
+        /// </summary>
+        private void ConfigureBackendUrl()
+        {
+            string currentUrl = Settings.Instance.GetString("ai_backend_url", "http://localhost:5000");
+            string newUrl = currentUrl;
+
+            var result = Controls.InputBox.Show("Configure AI Backend", "Enter backend URL:", ref newUrl);
+
+            if (result == DialogResult.OK && !string.IsNullOrEmpty(newUrl) && newUrl != currentUrl)
+            {
+                Settings.Instance["ai_backend_url"] = newUrl;
+
+                // Recreate AI service with new URL
+                aiService = new AIBackendService(newUrl, 90);
+
+                AppendMessage($"[System] Backend URL changed to: {newUrl}", Color.Cyan);
+                AppendMessage("[System] Click connect button to test connection.", Color.Gray);
+
+                UpdateConnectionStatus(false);
             }
         }
 

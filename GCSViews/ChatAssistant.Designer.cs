@@ -93,6 +93,7 @@ namespace MissionPlanner.GCSViews
             this.connectionButton.Text = "🔌";
             this.connectionButton.UseVisualStyleBackColor = false;
             this.connectionButton.Click += new System.EventHandler(this.connectionButton_Click);
+            this.connectionButton.MouseUp += new System.Windows.Forms.MouseEventHandler(this.connectionButton_MouseUp);
             // 
             // modeLabel
             // 
