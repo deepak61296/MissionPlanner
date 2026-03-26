@@ -4,6 +4,8 @@ A special **fork** of Mission Planner featuring an integrated AI chat assistant 
 
 Press **Ctrl+L** to chat with your drone using plain English!
 
+[![Mission Planner Demo](https://img.youtube.com/vi/mMeY41tOgTs/0.jpg)](https://www.youtube.com/watch?v=mMeY41tOgTs)
+
 ## 🤖 What Makes This Special?
 
 This fork adds an AI-powered sidebar to Mission Planner that lets you:
