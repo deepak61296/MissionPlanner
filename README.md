@@ -48,7 +48,7 @@ git checkout feature/ai-chat-assistant
 
 The AI chat feature requires a local backend server.
 
-**Install the backend:** https://github.com/deepak61296/ap_offline_chat_tool
+**Install the backend:** https://github.com/deepak61296/ardupilot-ai-backend
 
 Quick setup:
 ```bash
@@ -56,8 +56,8 @@ Quick setup:
 ollama pull qwen2.5:3b
 
 # Clone backend
-git clone https://github.com/deepak61296/ap_offline_chat_tool.git
-cd ap_offline_chat_tool
+git clone https://github.com/deepak61296/ardupilot-ai-backend.git
+cd ardupilot-ai-backend
 
 # Setup Python environment
 conda create -n ai_backend python=3.10 -y
@@ -68,7 +68,7 @@ pip install -r requirements.txt
 python -m backend.api_server
 ```
 
-See the [backend README](https://github.com/deepak61296/ap_offline_chat_tool) for detailed setup instructions.
+See the [backend README](https://github.com/deepak61296/ardupilot-ai-backend) for detailed setup instructions.
 
 ## 🚀 How to Use
 
@@ -118,7 +118,7 @@ MissionPlanner/
 
 ## 🔗 Links
 
-- **AI Backend:** https://github.com/deepak61296/ap_offline_chat_tool
+- **AI Backend:** https://github.com/deepak61296/ardupilot-ai-backend
 - **Latest Release:** https://github.com/deepak61296/MissionPlanner/releases/tag/ai_backend
 - **Report Issues:** https://github.com/deepak61296/MissionPlanner/issues
 - **Official Mission Planner:** https://github.com/ArduPilot/MissionPlanner
@@ -126,7 +126,7 @@ MissionPlanner/
 ## 📖 Documentation
 
 - [README_AI_FEATURES.md](README_AI_FEATURES.md) - Detailed AI features guide
-- [Backend Setup](https://github.com/deepak61296/ap_offline_chat_tool) - Full backend documentation
+- [Backend Setup](https://github.com/deepak61296/ardupilot-ai-backend) - Full backend documentation
 
 ## 🛠️ Development
 
